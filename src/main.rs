@@ -10,9 +10,9 @@ use std::ffi::OsStr;
 use std::fmt::Debug;
 use std::net::Ipv4Addr;
 use std::path::PathBuf;
-use std::io::{self, BufRead, BufReader};
+use std::io::{self, BufRead, BufReader, ErrorKind};
 use std::str::Split;
-use std::{fs, thread};
+use std::{fs, thread, usize};
 use std::io::Seek;
 use std::sync::atomic::{AtomicU64, Ordering};
 use notify::{EventKind, RecursiveMode, Watcher};
@@ -43,7 +43,7 @@ const SIP_METHODS: &[&str] = &["INVITE", "ACK", "BYE", "CANCEL", "REGISTER", "OP
 ///   `xsip /home/log/pcscf.1 -a 200 -q INVITE -i 151.123.321.123;` : Lists all '200 OK' Responses to previous INVITEs that where sent from/to IP 151.123.321.123
 ///   `xsip /home/log/pcscf.1 -s "Asterisk";`                       : Lists all Packets containing the String "Asterisk" somewhere
 #[derive(Parser, Debug)]
-#[command(author="Benjamin H.", version="0.2.0", about, verbatim_doc_comment, override_usage="xsip [INPUT_FILE] [OPTIONS]")]
+#[command(author="Benjamin H.", version="0.2.2", about, verbatim_doc_comment, override_usage="xsip [INPUT_FILE] [OPTIONS]")]
 struct Args {
 
     /// Path of pcscf.1 / ibcf.1 Log-file
@@ -1159,7 +1159,9 @@ fn main() {
                 if !args.follow {
                     // ### Method 2: Read whole file normally ###
 
-                    if path.extension().unwrap_or(OsStr::new("")) == "gz" {
+                    if path.file_name().unwrap_or(OsStr::new("")).to_string_lossy().contains(".gz") {
+
+                        println!("[Info] Found compressed file, using GzDecoder...\n");
 
                         // Compressed File
                         if let Ok(file) = fs::File::open(path) {
@@ -1168,7 +1170,17 @@ fn main() {
                             let mut line = String::new();
                             
                             // Read line by line while reusing the same line var -> more efficient
-                            while reader.read_line(&mut line).is_ok_and(|x| x != 0) {
+                            while reader.read_line(&mut line)
+                                        .or_else(|e| {
+                                            if e.kind() == ErrorKind::InvalidData {
+                                                line = "".to_string();
+                                                return Ok(1)
+                                            }else {
+                                                return Err(e);
+                                            }
+                                        })
+                                        .is_ok_and(|x| x != 0) 
+                            {
 
                                 line = line.strip_suffix("\r\n")
                                             .or(line.strip_suffix("\n"))
@@ -1190,9 +1202,19 @@ fn main() {
 
                             let mut reader: Box<dyn BufRead> = Box::new(BufReader::new(file));
                             let mut line = String::new();
-                            
+
                             // Read line by line while reusing the same line var -> more efficient
-                            while reader.read_line(&mut line).is_ok_and(|x| x != 0) {
+                            while reader.read_line(&mut line)
+                                        .or_else(|e| {
+                                            if e.kind() == ErrorKind::InvalidData {
+                                                line = "".to_string();
+                                                return Ok(1)
+                                            }else {
+                                                return Err(e);
+                                            }
+                                        })
+                                        .is_ok_and(|x| x != 0) 
+                            {
 
                                 line = line.strip_suffix("\r\n")
                                             .or(line.strip_suffix("\n"))
@@ -1257,24 +1279,32 @@ fn main() {
                                                 f.seek(std::io::SeekFrom::Start(lastpos)).expect("TODO-TEMP");
                                                 
                                                 // Read from lastpos to current end of file
-                                                let reader: Box<dyn BufRead> = Box::new(BufReader::new(&f));
+                                                let mut reader: Box<dyn BufRead> = Box::new(BufReader::new(&f));
+                                                let mut line = String::new();
 
                                                 // Update lastpos
                                                 pos.store(curpos, Ordering::SeqCst);
                                                 
                                                 // Pass every line to our filtering function
-                                                for line in reader.lines() {
-                                                    match line {
-                                                        Ok(ref lineok) => {
-                                                            
-                                                            // ##### FILTER & MARKUP & PRINT using functions #####
-                                                            handle_log_line(&args, &mut packet_buffer, &mut packet_obj, lineok);
-                                                            // println!("{}", lineok);
+                                                while reader.read_line(&mut line)
+                                                    .or_else(|e| {
+                                                        if e.kind() == ErrorKind::InvalidData {
+                                                            line = "".to_string();
+                                                            return Ok(1)
+                                                        }else {
+                                                            return Err(e);
                                                         }
-                                                        Err(error) => {
-                                                            println!("[Error] Couldn't handle this Line {}", error);
-                                                        }
-                                                    }
+                                                    })
+                                                    .is_ok_and(|x| x != 0) 
+                                                {   
+
+                                                    line = line.strip_suffix("\r\n")
+                                                                .or(line.strip_suffix("\n"))
+                                                                .unwrap_or(&line).to_string();
+
+                                                    handle_log_line(&args, &mut packet_buffer, &mut packet_obj, &line);
+
+                                                    line.clear();
                                                 }
                                             }
                                         }
