@@ -1016,14 +1016,14 @@ fn parse_packet(packet_buffer: &mut Vec<String>, packet_obj: &mut Packet) {
                         packet_obj.isresponse = true;
                         packet_obj.sip_version = statusline.get(0).unwrap_or(&"").trim().to_string();
                         packet_obj.response_code = statusline.get(1).unwrap_or(&"").trim().to_string();
-                        packet_obj.response_text = statusline.get(2).unwrap_or(&"").trim().to_string();
+                        packet_obj.response_text = statusline.get(2..statusline.len()).unwrap_or(&[""]).join(" ").trim().to_string();
                         
                     }else if SIP_METHODS.iter().any(|s| statusline.get(0).unwrap_or(&"").trim().to_uppercase().starts_with(*s)) {
                         // Packet is a SIP Request
                         packet_obj.isresponse = false;
                         packet_obj.sip_method = statusline.get(0).unwrap_or(&"").trim().to_string();
                         packet_obj.request_uri = statusline.get(1).unwrap_or(&"").trim().to_string();
-                        packet_obj.sip_version = statusline.get(2).unwrap_or(&"").trim().to_string();
+                        packet_obj.sip_version = statusline.get(2..statusline.len()-1).unwrap_or(&[""]).join(" ").trim().to_string();
                         
                     }else{
                         packet_obj.error = true;
