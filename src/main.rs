@@ -692,7 +692,7 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
 
         // ### SIP-METHOD / RES-TEXT ### 
         if args.method.is_some() {
-            if args.method.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && (&packet_obj.sip_method.to_uppercase() == &arg.to_uppercase() || &packet_obj.response_text.to_uppercase()  == &arg.to_uppercase()) ) {
+            if args.method.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && (packet_obj.sip_method.to_uppercase().contains(&arg.to_uppercase()) || packet_obj.response_text.to_uppercase().contains(&arg.to_uppercase())) ) {
                 filter_results.insert("method".to_string(), true);
             }else {
                 filter_results.insert("method".to_string(), false);
