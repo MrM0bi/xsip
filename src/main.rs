@@ -679,14 +679,12 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
 
             let empty = "".to_string();
             let cid = packet_obj.sip.get("Call-ID").unwrap_or(&empty);
-            let atidx = cid.find("@").unwrap_or(cid.len());
 
-            if args.call_id.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && cid[..atidx].contains(arg)) {
+            if args.call_id.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && cid.contains(arg)) {
                 filter_results.insert("call_id".to_string(), true);
             }else{
                 filter_results.insert("call_id".to_string(), false);
             }
-
 
         }
 
