@@ -248,7 +248,7 @@ fn color_response_method(response_code: &String, response_text: &String) -> Stri
         x if x >= 500 => format!("{} {}", response_code.red(), spaced_response_text.bright_white().on_red()),
         x if x >= 400 => format!("{} {}", response_code.red(), spaced_response_text.bright_white().on_red()),
         x if x >= 300 => format!("{} {}", response_code.yellow(), spaced_response_text.bright_white().on_yellow()),
-        x if x >= 200 => format!("{} {}", response_code.green(), spaced_response_text.bright_white().on_bright_green()),
+        x if x >= 200 => format!("{} {}", response_code.green(), spaced_response_text.bright_white().on_green()),
         _ => format!("{} {}", response_code, spaced_response_text.bright_white().on_black())
     }
 
@@ -359,9 +359,9 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
             // Print Packet info
             let mut _pinfo: String = String::new();
             if packet_obj.outgoing {
-                _pinfo = format!("({}) {}:{} -->> {}:{} ({} bytes)", packet_obj.time.format("%Y-%m-%d %H:%M:%S").to_string().bright_blue(), packet_obj.srcip.to_string().bright_green(), packet_obj.srcport.to_string().green().dimmed(), packet_obj.dstip.to_string().bright_red(), packet_obj.dstport.to_string().red().dimmed(), packet_obj.payload_size);
+                _pinfo = format!("({}) {}:{} -->> {}:{} ({} bytes)", packet_obj.time.format("%Y-%m-%d %H:%M:%S").to_string().bright_blue(), packet_obj.srcip.to_string().bright_green(), packet_obj.srcport.to_string().green(), packet_obj.dstip.to_string().bright_red(), packet_obj.dstport.to_string().red(), packet_obj.payload_size);
             }else{
-                _pinfo = format!("({}) {}:{} <<-- {}:{} ({} bytes)", packet_obj.time.format("%Y-%m-%d %H:%M:%S").to_string().bright_blue(), packet_obj.dstip.to_string().bright_green(), packet_obj.dstport.to_string().green().dimmed(), packet_obj.srcip.to_string().bright_red(), packet_obj.srcport.to_string().red().dimmed(), packet_obj.payload_size);
+                _pinfo = format!("({}) {}:{} <<-- {}:{} ({} bytes)", packet_obj.time.format("%Y-%m-%d %H:%M:%S").to_string().bright_blue(), packet_obj.dstip.to_string().bright_green(), packet_obj.dstport.to_string().green(), packet_obj.srcip.to_string().bright_red(), packet_obj.srcport.to_string().red(), packet_obj.payload_size);
             }
             println!("{}", _pinfo);
 
