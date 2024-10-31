@@ -1,4 +1,4 @@
-use chrono::{Local, NaiveDate, NaiveDateTime, NaiveTime};
+use chrono::{Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
 use clap::Parser;
 use flate2::read::GzDecoder;
 use indexmap::IndexMap;
@@ -39,7 +39,7 @@ const SIP_METHODS: &[&str] = &["INVITE", "ACK", "BYE", "CANCEL", "REGISTER", "OP
 ///   All Filters are generally Case-insensitive. Only the "-c, --call-id" Flag ist Case-sensitive.
 /// 
 /// EXAMPLE
-///   `xsip /home/log/pcscf.1 -f --ext -m REGISTER -n 0471234567;`  : Follows the file and shows all external REGISTER Requests from a specific number
+///   `xsip /home/log/pcscf.1 -f --int -m REGISTER -n 0471234567;`  : Follows the file and shows all external and internal REGISTER Requests from a specific number
 ///   `xsip /home/log/pcscf.1 -a 200 -q INVITE -i 151.123.321.123;` : Lists all '200 OK' Responses to previous INVITEs that where sent from/to IP 151.123.321.123
 ///   `xsip /home/log/pcscf.1 -s "Asterisk";`                       : Lists all Packets containing the String "Asterisk" somewhere
 #[derive(Parser, Debug)]
@@ -91,11 +91,6 @@ struct Args {
     dstip: Option<Vec<String>>,
 
     
-    /// Filter Packets by external IPs
-    #[arg(long = "ext")]
-    external: bool,
-
-
     /// Filter Packets by Port (SRC or DST)
     #[arg(short, long, num_args=1.., value_delimiter=',')]
     port: Option<Vec<u16>>,
@@ -144,6 +139,11 @@ struct Args {
     /// Match only Response Packets
     #[arg(long)]
     response: bool,
+
+
+    /// Do not Filter Packets by external IPs, show Pakets between private IPs too
+    #[arg(long = "int")]
+    internal: bool,
 
 
     /// Prints the Packets Info line and Basic SIP Headers only 
@@ -358,10 +358,16 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
 
             // Print Packet info
             let mut _pinfo: String = String::new();
+
+            let mut date = "".to_string().bright_blue();
+            if packet_obj.time.date() != NaiveDate::from_ymd_opt(1970, 1, 1).unwrap() {
+                date = packet_obj.time.format("%Y-%m-%d ").to_string().bright_blue();
+            }
+
             if packet_obj.outgoing {
-                _pinfo = format!("({}) {}:{} -->> {}:{} ({} bytes)", packet_obj.time.format("%Y-%m-%d %H:%M:%S").to_string().bright_blue(), packet_obj.srcip.to_string().bright_green(), packet_obj.srcport.to_string().green(), packet_obj.dstip.to_string().bright_red(), packet_obj.dstport.to_string().red(), packet_obj.payload_size);
+                _pinfo = format!("({}{}) {}:{} -->> {}:{} ({} bytes)", date, packet_obj.time.format("%H:%M:%S").to_string().bright_blue(), packet_obj.srcip.to_string().bright_green(), packet_obj.srcport.to_string().green(), packet_obj.dstip.to_string().bright_red(), packet_obj.dstport.to_string().red(), packet_obj.payload_size);
             }else{
-                _pinfo = format!("({}) {}:{} <<-- {}:{} ({} bytes)", packet_obj.time.format("%Y-%m-%d %H:%M:%S").to_string().bright_blue(), packet_obj.dstip.to_string().bright_green(), packet_obj.dstport.to_string().green(), packet_obj.srcip.to_string().bright_red(), packet_obj.srcport.to_string().red(), packet_obj.payload_size);
+                _pinfo = format!("({}{}) {}:{} <<-- {}:{} ({} bytes)", date, packet_obj.time.format("%H:%M:%S").to_string().bright_blue(), packet_obj.dstip.to_string().bright_green(), packet_obj.dstport.to_string().green(), packet_obj.srcip.to_string().bright_red(), packet_obj.srcport.to_string().red(), packet_obj.payload_size);
             }
             println!("{}", _pinfo);
 
@@ -526,11 +532,11 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
 
 fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<String>) {
 
-    // Check if filters are beeing used and hide every packet by default
-    if args.number.is_some() || args.ip.is_some() || args.srcip.is_some() || args.dstip.is_some() || args.port.is_some() || 
-        args.srcport.is_some() || args.dstport.is_some() || args.external || args.call_id.is_some() || args.string.is_some() || 
-        args.method.is_some() || args.status_code.is_some() || args.cseq_method.is_some() || args.request || args.response || 
-        args.from.is_some() || args.to.is_some() || args.time.is_some() {
+    // // Check if filters are beeing used and hide every packet by default
+    // if args.number.is_some() || args.ip.is_some() || args.srcip.is_some() || args.dstip.is_some() || args.port.is_some() || 
+    //     args.srcport.is_some() || args.dstport.is_some() || args.internal || args.call_id.is_some() || args.string.is_some() || 
+    //     args.method.is_some() || args.status_code.is_some() || args.cseq_method.is_some() || args.request || args.response || 
+    //     args.from.is_some() || args.to.is_some() || args.time.is_some() {
 
         packet_obj.filter_out = true;
 
@@ -663,13 +669,11 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
 
 
 
-        // ### EXTERNAL ### 
-        if args.external {
-            if !packet_obj.srcip.is_private() || !packet_obj.dstip.is_private() {
-                filter_results.insert("external".to_string(), true);
-            }else {
-                filter_results.insert("external".to_string(), false);
-            }
+        // ### INTERNAL ### 
+        if !args.internal && (packet_obj.srcip.is_private() && packet_obj.dstip.is_private()) {
+            filter_results.insert("internal".to_string(), false);
+        }else{
+            filter_results.insert("internal".to_string(), true);
         }
 
 
@@ -898,14 +902,14 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
         // }
         // print!("\n");
         
-    }
+    // }
 
 }
 
 
 
 
-fn parse_packet(packet_buffer: &mut Vec<String>, packet_obj: &mut Packet) {
+fn parse_packet(packet_buffer: &mut Vec<String>, packet_obj: &mut Packet, date: NaiveDate) {
 
     for (idx, line) in packet_buffer.iter().enumerate(){
         
@@ -921,9 +925,9 @@ fn parse_packet(packet_buffer: &mut Vec<String>, packet_obj: &mut Packet) {
                     // Check if it has enough Elements
                     if info.len() >= 9 {
 
-                        // TIME : Parse current Time and update the Time in the initialized Object if Ok
+                        // DATE-TIME : Parse current Time and update the Time in the initialized Object if Ok
                         let parsedtime = match NaiveTime::parse_from_str(&info.get(0).unwrap_or(&"(00:00:00.00)")[1..12], "%H:%M:%S%.f") {
-                            Ok(time) => NaiveDateTime::new(Local::now().date_naive(), time),
+                            Ok(time) => NaiveDateTime::new(date, time),
                             Err(_e) => {
                                 packet_obj.error = true;
                                 packet_obj.error_text = "Unable to parse Time".to_string();
@@ -1069,7 +1073,7 @@ fn parse_packet(packet_buffer: &mut Vec<String>, packet_obj: &mut Packet) {
 
 
 
-fn handle_log_line(args: &Args, packet_buffer: &mut Vec<String>, mut packet_obj: &mut Packet, line: &String){
+fn handle_log_line(args: &Args, packet_buffer: &mut Vec<String>, mut packet_obj: &mut Packet, line: &String, date: NaiveDate){
     
     if line.trim().starts_with("(") {
 
@@ -1090,7 +1094,7 @@ fn handle_log_line(args: &Args, packet_buffer: &mut Vec<String>, mut packet_obj:
                 packet_obj.reset();
                 
                 // Do the actual work
-                parse_packet(packet_buffer, &mut packet_obj);
+                parse_packet(packet_buffer, &mut packet_obj, date);
                 filter_packet(args, &mut packet_obj, packet_buffer);
                 color_print_packet(args, &mut packet_obj, packet_buffer);
             }
@@ -1130,6 +1134,8 @@ fn main() {
             // Read and process stdin 
             let mut line = String::new();
 
+            let date = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
+
             // Read line by line while reusing the same line var -> more efficient
             while io::stdin().lock().read_line(&mut line).is_ok_and(|x| x != 0) {
 
@@ -1137,7 +1143,7 @@ fn main() {
                             .or(line.strip_suffix("\n"))
                             .unwrap_or(&line).to_string();
 
-                handle_log_line(&args, &mut packet_buffer, &mut packet_obj, &line);
+                handle_log_line(&args, &mut packet_buffer, &mut packet_obj, &line, date);
 
                 line.clear();
             }
@@ -1166,6 +1172,14 @@ fn main() {
                             
                             let mut reader = BufReader::new(GzDecoder::new(file));
                             let mut line = String::new();
+
+                            // Get file creation Time if possible, otherwise return 1970-01-01
+                            let file_date = fs::metadata(path).ok()
+                                .and_then(|metadata| metadata.modified().ok())
+                                .map(|time| Utc.timestamp_opt(time.duration_since(std::time::UNIX_EPOCH).unwrap_or(std::time::Duration::ZERO).as_secs() as i64, 0).unwrap())
+                                .map(|datetime| datetime.date_naive())
+                                .unwrap_or_else(|| NaiveDate::from_ymd_opt(1970, 1, 1).unwrap());
+
                             
                             // Read line by line while reusing the same line var -> more efficient
                             while reader.read_line(&mut line)
@@ -1184,7 +1198,7 @@ fn main() {
                                             .or(line.strip_suffix("\n"))
                                             .unwrap_or(&line).to_string();
 
-                                handle_log_line(&args, &mut packet_buffer, &mut packet_obj, &line);
+                                handle_log_line(&args, &mut packet_buffer, &mut packet_obj, &line, file_date);
 
                                 line.clear();
                             }
@@ -1200,6 +1214,14 @@ fn main() {
 
                             let mut reader: Box<dyn BufRead> = Box::new(BufReader::new(file));
                             let mut line = String::new();
+                            
+                            // Get file creation Time if possible, otherwise return 1970-01-01
+                            let file_date = fs::metadata(path).ok()
+                            .and_then(|metadata| metadata.modified().ok())
+                            .map(|time| Utc.timestamp_opt(time.duration_since(std::time::UNIX_EPOCH).unwrap_or(std::time::Duration::ZERO).as_secs() as i64, 0).unwrap())
+                            .map(|datetime| datetime.date_naive())
+                            .unwrap_or_else(|| NaiveDate::from_ymd_opt(1970, 1, 1).unwrap());
+                        
 
                             // Read line by line while reusing the same line var -> more efficient
                             while reader.read_line(&mut line)
@@ -1218,7 +1240,7 @@ fn main() {
                                             .or(line.strip_suffix("\n"))
                                             .unwrap_or(&line).to_string();
 
-                                handle_log_line(&args, &mut packet_buffer, &mut packet_obj, &line);
+                                handle_log_line(&args, &mut packet_buffer, &mut packet_obj, &line, file_date);
 
                                 line.clear();
                             }
@@ -1300,7 +1322,7 @@ fn main() {
                                                                 .or(line.strip_suffix("\n"))
                                                                 .unwrap_or(&line).to_string();
 
-                                                    handle_log_line(&args, &mut packet_buffer, &mut packet_obj, &line);
+                                                    handle_log_line(&args, &mut packet_buffer, &mut packet_obj, &line, Local::now().date_naive());
 
                                                     line.clear();
                                                 }
