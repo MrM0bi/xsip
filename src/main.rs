@@ -403,8 +403,8 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
                                 if endidx > value.find(";").unwrap_or(value.len()) {
                                     endidx = value.find(";").unwrap_or(value.len())
                                 }
-                                // Check if number contains C60
-                                if let Some(c60idx) = value.to_lowercase().find("c60") {
+                                // Check if number contains C60 and is inside number
+                                if let Some(c60idx) = value.to_lowercase().find("c60").filter(|x| x > &startidx && x < &endidx) {
                                     println!("{}: {}{}{}{}{}", key.bright_white(), value[..startidx].to_string(), value[startidx..c60idx].to_string().yellow(), value[c60idx..c60idx+9].to_string().bright_yellow(), value[c60idx+9..endidx].to_string().yellow(), value[endidx..].to_string());
                                 }else{
                                     println!("{}: {}{}{}", key.bright_white(), value[..startidx].to_string(), value[startidx..endidx].to_string().yellow(), value[endidx..].to_string());
