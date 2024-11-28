@@ -492,7 +492,7 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
                     c_from = c_from[startidx..endidx].to_string();
 
                     // To
-                    let mut c_to: String = packet_obj.sip.get("From").unwrap_or(&_pstatus).to_string();
+                    let mut c_to: String = packet_obj.sip.get("To").unwrap_or(&_pstatus).to_string();
                     let startidx = c_to.find(":").and_then(|x| Some(x+1)).unwrap_or(0);
                     let mut endidx = c_to.find("@").unwrap_or( c_to.find(">").unwrap_or(c_to.len()));
                     if endidx > c_to.find(";").unwrap_or(c_to.len()) {
