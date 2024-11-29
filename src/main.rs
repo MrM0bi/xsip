@@ -244,12 +244,12 @@ fn color_response_method(response_code: &String, response_text: &String) -> Stri
     let spaced_response_text: String = format!(" {} ", response_text);
     
     match response_code_int {
-        x if x >= 600 => format!("{} {}", response_code.magenta(), spaced_response_text.bright_white().on_magenta()),
-        x if x >= 500 => format!("{} {}", response_code.red(), spaced_response_text.bright_white().on_red()),
-        x if x >= 400 => format!("{} {}", response_code.red(), spaced_response_text.bright_white().on_red()),
-        x if x >= 300 => format!("{} {}", response_code.yellow(), spaced_response_text.bright_white().on_yellow()),
-        x if x >= 200 => format!("{} {}", response_code.green(), spaced_response_text.bright_white().on_green()),
-        _ => format!("{} {}", response_code, spaced_response_text.bright_white().on_black())
+        x if x >= 600 => format!("{} {}", response_code.truecolor(177, 44, 201), spaced_response_text.truecolor(255, 255, 255).on_truecolor(177, 44, 201)), // Magenta
+        x if x >= 500 => format!("{} {}", response_code.truecolor(244, 67, 54), spaced_response_text.truecolor(255, 255, 255).on_truecolor(244, 67, 54)), // Red
+        x if x >= 400 => format!("{} {}", response_code.truecolor(244, 67, 54), spaced_response_text.truecolor(255, 255, 255).on_truecolor(244, 67, 54)), // Red
+        x if x >= 300 => format!("{} {}", response_code.truecolor(255, 152, 0), spaced_response_text.truecolor(255, 255, 255).on_truecolor(255, 152, 0)), // Yellow
+        x if x >= 200 => format!("{} {}", response_code.truecolor(76, 175, 80), spaced_response_text.truecolor(255, 255, 255).on_truecolor(76, 175, 80)), // Green
+        _ => format!("{} {}", response_code, spaced_response_text.truecolor(255, 255, 255).on_truecolor(71, 71, 71))
     }
 
 
@@ -264,12 +264,12 @@ fn color_request_method(method: &String) -> ColoredString {
     let spaced_method: String = format!(" {} ", method);
 
     match method.as_str() {
-        "REGISTER" => spaced_method.bright_white().on_magenta(),
-        "INVITE" => spaced_method.bright_white().on_blue(),
-        "UPDATE" => spaced_method.bright_white().on_cyan(),
-        "CANCEL" => spaced_method.bright_white().on_red(),
-        "BYE" => spaced_method.bright_white().on_yellow(),
-        _ => spaced_method.bright_white().on_black()
+        "REGISTER" => spaced_method.truecolor(255, 255, 255).on_truecolor(177, 44, 201), // Magenta
+        "INVITE" => spaced_method.truecolor(255, 255, 255).on_truecolor(26, 115, 232), // Blue
+        "UPDATE" => spaced_method.truecolor(255, 255, 255).on_truecolor(0, 184, 204), // Cyan
+        "CANCEL" => spaced_method.truecolor(255, 255, 255).on_truecolor(244, 67, 54), // Red
+        "BYE" => spaced_method.truecolor(255, 255, 255).on_truecolor(255, 152, 0), // Yellow
+        _ => spaced_method.truecolor(255, 255, 255).on_truecolor(71, 71, 71) // Gray
     }
 
 }
@@ -329,6 +329,25 @@ fn to_headercase(header: String) -> String {
 
 fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<String>) {
 
+    // COLOR LIST
+
+    // I previously tried using the default Terminal Colors, that approach is conveniant, but limited for future change.
+    // Now i switched to manually using Truecolor RGB codes. This could probably be solved easier in some other way in the future
+    // Here's the List of the Color palette:
+
+    // |             | WHITE         | DARK       | BLACK      | RED           | GREEN         | YELLOW       | BLUE         | MAGENTA      | CYAN        | LIGHT         |
+    // |-------------|---------------|------------|------------|---------------|---------------|--------------|--------------|--------------|-------------|---------------|
+    // | Color       | 235, 235, 235 | 18, 18, 18 | 71, 71, 71 | 244, 67, 54   | 76, 175, 80   | 255, 152, 0  | 26, 115, 232 | 177, 44, 201 | 0, 184, 204 | 235, 235, 235 |
+    // | Color Light | 255, 255, 255 | 18, 18, 18 | 92, 92, 92 | 247, 110, 100 | 113, 193, 116 | 255, 173, 51 | 69, 142, 237 | 193, 71, 215 | 0, 220, 245 | 255, 255, 255 |
+    // | Color Dark  | 214, 214, 214 | 18, 18, 18 | 51, 51, 51 | 230, 40, 33   | 68, 156, 71   | 224, 135, 0  | 20, 100, 204 | 148, 37, 167 | 0, 147, 163 | 214, 214, 214 |
+
+    // Here is a more readable version using Coolors:
+
+    // Color: https://coolors.co/ebebeb-121212-474747-f44336-4caf50-ff9800-1a73e8-b12cc9-00b8cc-ebebeb
+    // Color Light: https://coolors.co/ffffff-121212-5c5c5c-f76e64-71c174-ffad33-458eed-c147d7-00dcf5-ffffff
+    // Color Dark: https://coolors.co/d6d6d6-121212-333333-e62821-449c47-e08700-1464cc-9425a7-0093a3-d6d6d6 
+
+
     // Don't print filtered Packages
     if !packet_obj.filter_out {
 
@@ -359,15 +378,15 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
             // Print Packet info
             let mut _pinfo: String = String::new();
 
-            let mut date = "".to_string().bright_blue();
+            let mut date = "".to_string().truecolor(69, 142, 237);
             if packet_obj.time.date() != NaiveDate::from_ymd_opt(1970, 1, 1).unwrap() {
-                date = packet_obj.time.format("%Y-%m-%d ").to_string().bright_blue();
+                date = packet_obj.time.format("%Y-%m-%d ").to_string().truecolor(69, 142, 237);
             }
 
             if packet_obj.outgoing {
-                _pinfo = format!("({}{}) {}:{} -->> {}:{} ({} bytes)", date, packet_obj.time.format("%H:%M:%S").to_string().bright_blue(), packet_obj.srcip.to_string().bright_green(), packet_obj.srcport.to_string().green(), packet_obj.dstip.to_string().bright_red(), packet_obj.dstport.to_string().red(), packet_obj.payload_size);
+                _pinfo = format!("({}{}) {}:{} -->> {}:{} ({} bytes)", date, packet_obj.time.format("%H:%M:%S").to_string().truecolor(69, 142, 237), packet_obj.srcip.to_string().truecolor(113, 193, 116), packet_obj.srcport.to_string().truecolor(76, 175, 80), packet_obj.dstip.to_string().truecolor(247, 110, 100), packet_obj.dstport.to_string().truecolor(244, 67, 54), packet_obj.payload_size);
             }else{
-                _pinfo = format!("({}{}) {}:{} <<-- {}:{} ({} bytes)", date, packet_obj.time.format("%H:%M:%S").to_string().bright_blue(), packet_obj.dstip.to_string().bright_green(), packet_obj.dstport.to_string().green(), packet_obj.srcip.to_string().bright_red(), packet_obj.srcport.to_string().red(), packet_obj.payload_size);
+                _pinfo = format!("({}{}) {}:{} <<-- {}:{} ({} bytes)", date, packet_obj.time.format("%H:%M:%S").to_string().truecolor(69, 142, 237), packet_obj.dstip.to_string().truecolor(113, 193, 116), packet_obj.dstport.to_string().truecolor(76, 175, 80), packet_obj.srcip.to_string().truecolor(247, 110, 100), packet_obj.srcport.to_string().truecolor(244, 67, 54), packet_obj.payload_size);
             }
             println!("{}", _pinfo);
 
@@ -393,7 +412,7 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
                             // ### CALL-ID ###
                             if key == "Call-ID" {
                                 let atidx = value.find("@").unwrap_or(value.len());
-                                println!("{}: {}{}", key.bright_white(), value[..atidx].to_string().purple(), value[atidx..].to_string());
+                                println!("{}: {}{}", key.truecolor(255, 255, 255), value[..atidx].to_string().truecolor(177, 44, 201), value[atidx..].to_string());
                             
                             // ### FROM / TO ###
                             }else if key == "From" || key == "To" || key == "P-Asserted-Identity" {
@@ -405,16 +424,17 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
                                 }
                                 // Check if number contains C60 and is inside number
                                 if let Some(c60idx) = value.to_lowercase().find("c60").filter(|x| x > &startidx && x < &endidx) {
-                                    println!("{}: {}{}{}{}{}", key.bright_white(), value[..startidx].to_string(), value[startidx..c60idx].to_string().yellow(), value[c60idx..c60idx+9].to_string().bright_yellow(), value[c60idx+9..endidx].to_string().yellow(), value[endidx..].to_string());
+                                    // The lighter yellow color used for the C60 is not following the Table, i used: #FFC670 / 255, 198, 112
+                                    println!("{}: {}{}{}{}{}", key.truecolor(255, 255, 255), value[..startidx].to_string(), value[startidx..c60idx].to_string().truecolor(255, 152, 0), value[c60idx..c60idx+9].to_string().truecolor(255, 198, 112), value[c60idx+9..endidx].to_string().truecolor(255, 152, 0), value[endidx..].to_string());
                                 }else{
-                                    println!("{}: {}{}{}", key.bright_white(), value[..startidx].to_string(), value[startidx..endidx].to_string().yellow(), value[endidx..].to_string());
+                                    println!("{}: {}{}{}", key.truecolor(255, 255, 255), value[..startidx].to_string(), value[startidx..endidx].to_string().truecolor(255, 152, 0), value[endidx..].to_string());
                                 }
 
                                 
                             // ### CSEQ ###
                             }else if key == "CSeq" {
                                 let slice = value.split_at(value.find(" ").and_then(|x| Some(x+1)).unwrap_or(0));
-                                println!("{}: {}{}", key.bright_white(), slice.0, slice.1.to_string().blue());
+                                println!("{}: {}{}", key.truecolor(255, 255, 255), slice.0, slice.1.to_string().truecolor(26, 115, 232));
                                 
                             // ### Contact ###
                             }else if key == "Contact" {
@@ -424,23 +444,23 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
                                 let tribracket = value.find(">").unwrap_or(value.len());
 
                                 if semicolon == tribracket {
-                                    println!("{}: {}", key.bright_white(), value);
+                                    println!("{}: {}", key.truecolor(255, 255, 255), value);
                                 }else if semicolon < tribracket{
-                                    println!("{}: {}{}{}", key.bright_white(), value[..startidx].to_string(), value[startidx..semicolon].to_string().bright_cyan(), value[semicolon..].to_string());
+                                    println!("{}: {}{}{}", key.truecolor(255, 255, 255), value[..startidx].to_string(), value[startidx..semicolon].to_string().truecolor(0, 220, 245), value[semicolon..].to_string());
                                 }else{
-                                    println!("{}: {}{}{}", key.bright_white(), value[..startidx].to_string(), value[startidx..tribracket].to_string().bright_cyan(), value[tribracket..].to_string());
+                                    println!("{}: {}{}{}", key.truecolor(255, 255, 255), value[..startidx].to_string(), value[startidx..tribracket].to_string().truecolor(0, 220, 245), value[tribracket..].to_string());
                                 }
 
                             // ### REASON ###
                             }else if key == "Reason" {
                                 if packet_obj.response_code.parse().unwrap_or(-1) >= 400 {
-                                    println!("{}: {}", key.bright_white(), value.red().to_string());
+                                    println!("{}: {}", key.truecolor(255, 255, 255), value.truecolor(244, 67, 54).to_string());
                                 }else {
-                                    println!("{}: {}", key.bright_white(), value);
+                                    println!("{}: {}", key.truecolor(255, 255, 255), value);
                                 }
                             
                             }else{
-                                println!("{}: {}", key.bright_white(), value);
+                                println!("{}: {}", key.truecolor(255, 255, 255), value);
                             }
 
                         }
@@ -455,12 +475,12 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
                             // ### RTP IP ###
                             if value.starts_with("c=") {
                                 let ipidx = value.find("IP4 ").and_then(|x| Some(x+4)).unwrap_or(value.find("=").and_then(|x| Some(x+1)).unwrap_or(0));
-                                println!("{}{}", value[..ipidx].to_string(), value[ipidx..].to_string().bright_cyan());
+                                println!("{}{}", value[..ipidx].to_string(), value[ipidx..].to_string().truecolor(0, 220, 245));
                                 
                             // ### RTP Codecs ###
                             }else if value.starts_with("a=rtpmap:") {
                                 let slidx = value.find("/").unwrap_or(value.len());
-                                println!("{}{}{}", value[..9].to_string(), value[9..slidx].to_string().green(), value[slidx..].to_string());
+                                println!("{}{}{}", value[..9].to_string(), value[9..slidx].to_string().truecolor(76, 175, 80), value[slidx..].to_string());
                                 
                             }else{
                                 println!("{}", value);
