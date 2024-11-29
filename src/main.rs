@@ -38,6 +38,8 @@ const SIP_METHODS: &[&str] = &["INVITE", "ACK", "BYE", "CANCEL", "REGISTER", "OP
 ///    
 ///   All Filters are generally Case-insensitive. Only the "-c, --call-id" Flag ist Case-sensitive.
 /// 
+///   Multiple SIP-Headers with the same name are supported, filtering by them may be a bit flaky.
+/// 
 /// EXAMPLE
 ///   `xsip /home/log/pcscf.1 -f --int -m REGISTER -n 0471234567;`  : Follows the file and shows all external and internal REGISTER Requests from a specific number
 ///   `xsip /home/log/pcscf.1 -a 200 -q INVITE -i 151.123.321.123;` : Lists all '200 OK' Responses to previous INVITEs that where sent from/to IP 151.123.321.123
