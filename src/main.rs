@@ -43,7 +43,7 @@ const SIP_METHODS: &[&str] = &["INVITE", "ACK", "BYE", "CANCEL", "REGISTER", "OP
 ///   `xsip /home/log/pcscf.1 -a 200 -q INVITE -i 151.123.321.123;` : Lists all '200 OK' Responses to previous INVITEs that where sent from/to IP 151.123.321.123
 ///   `xsip /home/log/pcscf.1 -s "Asterisk";`                       : Lists all Packets containing the String "Asterisk" somewhere
 #[derive(Parser, Debug)]
-#[command(author="Benjamin H.", version="0.2.6", about, verbatim_doc_comment, override_usage="xsip [INPUT_FILE] [OPTIONS]")]
+#[command(author="Benjamin H.", version=env!("CARGO_PKG_VERSION"), about, verbatim_doc_comment, override_usage="xsip [INPUT_FILE] [OPTIONS]")]
 struct Args {
 
     /// Path of pcscf.1 / ibcf.1 Log-file
@@ -408,59 +408,66 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
                     // Print SIP
                     if packet_obj.sip.len() > 0 {
                         for (key, value) in &packet_obj.sip {
-                            
-                            // ### CALL-ID ###
-                            if key == "Call-ID" {
-                                let atidx = value.find("@").unwrap_or(value.len());
-                                println!("{}: {}{}", key.truecolor(255, 255, 255), value[..atidx].to_string().truecolor(177, 44, 201), value[atidx..].to_string());
-                            
-                            // ### FROM / TO ###
-                            }else if key == "From" || key == "To" || key == "P-Asserted-Identity" {
-                                // Try to narrow down the string to the actual number, not the whole URI
-                                let startidx = value.find(":").and_then(|x| Some(x+1)).unwrap_or(0);
-                                let mut endidx = value.find("@").unwrap_or( value.find(">").unwrap_or(value.len()));
-                                if endidx > value.find(";").unwrap_or(value.len()) {
-                                    endidx = value.find(";").unwrap_or(value.len())
-                                }
-                                // Check if number contains C60 and is inside number
-                                if let Some(c60idx) = value.to_lowercase().find("c60").filter(|x| x > &startidx && x < &endidx) {
-                                    // The lighter yellow color used for the C60 is not following the Table, i used: #FFC670 / 255, 198, 112
-                                    println!("{}: {}{}{}{}{}", key.truecolor(255, 255, 255), value[..startidx].to_string(), value[startidx..c60idx].to_string().truecolor(255, 152, 0), value[c60idx..c60idx+9].to_string().truecolor(255, 198, 112), value[c60idx+9..endidx].to_string().truecolor(255, 152, 0), value[endidx..].to_string());
-                                }else{
-                                    println!("{}: {}{}{}", key.truecolor(255, 255, 255), value[..startidx].to_string(), value[startidx..endidx].to_string().truecolor(255, 152, 0), value[endidx..].to_string());
-                                }
 
+                            // Search for signs of a multiple same-named Headers (see end of parse_packet for context)
+                            for valp in value.clone().split(" ¶ ") {
+                            
+                                // ### CALL-ID ###
+                                if key == "Call-ID" {
+                                    let atidx = valp.find("@").unwrap_or(valp.len());
+                                    println!("{}: {}{}", key.truecolor(255, 255, 255), valp[..atidx].to_string().truecolor(177, 44, 201), valp[atidx..].to_string());
                                 
-                            // ### CSEQ ###
-                            }else if key == "CSeq" {
-                                let slice = value.split_at(value.find(" ").and_then(|x| Some(x+1)).unwrap_or(0));
-                                println!("{}: {}{}", key.truecolor(255, 255, 255), slice.0, slice.1.to_string().truecolor(26, 115, 232));
+                                // ### FROM / TO ###
+                                }else if key == "From" || key == "To" || key == "P-Asserted-Identity" {
+                                    // Try to narrow down the string to the actual number, not the whole URI
+                                    let startidx = valp.find(":").and_then(|x| Some(x+1)).unwrap_or(0);
+                                    let mut endidx = valp.find("@").unwrap_or( valp.find(">").unwrap_or(valp.len()));
+                                    if endidx > valp.find(";").unwrap_or(valp.len()) {
+                                        endidx = valp.find(";").unwrap_or(valp.len())
+                                    }
+                                    // Check if number contains C60 and is inside number
+                                    if let Some(c60idx) = valp.to_lowercase().find("c60").filter(|x| x > &startidx && x < &endidx) {
+                                        // The lighter yellow color used for the C60 is not following the Table, i used: #FFC670 / 255, 198, 112
+                                        println!("{}: {}{}{}{}{}", key.truecolor(255, 255, 255), valp[..startidx].to_string(), valp[startidx..c60idx].to_string().truecolor(255, 152, 0), valp[c60idx..c60idx+9].to_string().truecolor(255, 198, 112), valp[c60idx+9..endidx].to_string().truecolor(255, 152, 0), valp[endidx..].to_string());
+                                    }else{
+                                        println!("{}: {}{}{}", key.truecolor(255, 255, 255), valp[..startidx].to_string(), valp[startidx..endidx].to_string().truecolor(255, 152, 0), valp[endidx..].to_string());
+                                    }
+
+                                    
+                                // ### CSEQ ###
+                                }else if key == "CSeq" {
+                                    let slice = valp.split_at(valp.find(" ").and_then(|x| Some(x+1)).unwrap_or(0));
+                                    println!("{}: {}{}", key.truecolor(255, 255, 255), slice.0, slice.1.to_string().truecolor(26, 115, 232));
+                                    
+                                // ### Contact ###
+                                }else if key == "Contact" {
+                                    let startidx = valp.find("@").and_then(|x| Some(x+1)).unwrap_or(valp.find(":").and_then(|x| Some(x+1)).unwrap_or(0));
+
+                                    let semicolon = valp.find(";").unwrap_or(valp.len());
+                                    let tribracket = valp.find(">").unwrap_or(valp.len());
+
+                                    if semicolon == tribracket {
+                                        println!("{}: {}", key.truecolor(255, 255, 255), valp);
+                                    }else if semicolon < tribracket{
+                                        println!("{}: {}{}{}", key.truecolor(255, 255, 255), valp[..startidx].to_string(), valp[startidx..semicolon].to_string().truecolor(0, 220, 245), valp[semicolon..].to_string());
+                                    }else{
+                                        println!("{}: {}{}{}", key.truecolor(255, 255, 255), valp[..startidx].to_string(), valp[startidx..tribracket].to_string().truecolor(0, 220, 245), valp[tribracket..].to_string());
+                                    }
+
+                                // ### REASON ###
+                                }else if key == "Reason" {
+                                    if packet_obj.response_code.parse().unwrap_or(-1) >= 400 {
+                                        println!("{}: {}", key.truecolor(255, 255, 255), valp.truecolor(244, 67, 54).to_string());
+                                    }else {
+                                        println!("{}: {}", key.truecolor(255, 255, 255), valp);
+                                    }
                                 
-                            // ### Contact ###
-                            }else if key == "Contact" {
-                                let startidx = value.find("@").and_then(|x| Some(x+1)).unwrap_or(value.find(":").and_then(|x| Some(x+1)).unwrap_or(0));
-
-                                let semicolon = value.find(";").unwrap_or(value.len());
-                                let tribracket = value.find(">").unwrap_or(value.len());
-
-                                if semicolon == tribracket {
-                                    println!("{}: {}", key.truecolor(255, 255, 255), value);
-                                }else if semicolon < tribracket{
-                                    println!("{}: {}{}{}", key.truecolor(255, 255, 255), value[..startidx].to_string(), value[startidx..semicolon].to_string().truecolor(0, 220, 245), value[semicolon..].to_string());
                                 }else{
-                                    println!("{}: {}{}{}", key.truecolor(255, 255, 255), value[..startidx].to_string(), value[startidx..tribracket].to_string().truecolor(0, 220, 245), value[tribracket..].to_string());
+
+                                    println!("{}: {}", key.truecolor(255, 255, 255), valp);
+
                                 }
 
-                            // ### REASON ###
-                            }else if key == "Reason" {
-                                if packet_obj.response_code.parse().unwrap_or(-1) >= 400 {
-                                    println!("{}: {}", key.truecolor(255, 255, 255), value.truecolor(244, 67, 54).to_string());
-                                }else {
-                                    println!("{}: {}", key.truecolor(255, 255, 255), value);
-                                }
-                            
-                            }else{
-                                println!("{}: {}", key.truecolor(255, 255, 255), value);
                             }
 
                         }
@@ -1078,8 +1085,17 @@ fn parse_packet(packet_buffer: &mut Vec<String>, packet_obj: &mut Packet, date: 
                             let slices = line.split_at(splitindex);
                             
                             let key = to_headercase(slices.0[..slices.0.len()].trim().to_string().to_lowercase());
-                            let value = slices.1[1..].trim().to_string();
-                            
+                            let mut value = slices.1[1..].trim().to_string();
+
+                            // WORKAROUND
+                            // Turns out duplicate Headers can exist... Check for that. Since i don't want to rework
+                            // everything and i'm using a IndexMap i'll combine the values with a delimiting
+                            // character (¶) that is (i think) not used in any Header values in this form to 
+                            // distinguish between values. The printing function then seperates the Values again.
+                            if let Some(ov) = packet_obj.sip.get(&key) {
+                                value = format!("{} ¶ {}", ov, value);
+                            }
+
                             packet_obj.sip.insert(key, value);
                             
                         },
