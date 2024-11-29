@@ -567,378 +567,370 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
 
 fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<String>) {
 
-    // // Check if filters are beeing used and hide every packet by default
-    // if args.number.is_some() || args.ip.is_some() || args.srcip.is_some() || args.dstip.is_some() || args.port.is_some() || 
-    //     args.srcport.is_some() || args.dstport.is_some() || args.internal || args.call_id.is_some() || args.string.is_some() || 
-    //     args.method.is_some() || args.status_code.is_some() || args.cseq_method.is_some() || args.request || args.response || 
-    //     args.from.is_some() || args.to.is_some() || args.time.is_some() {
-
-        packet_obj.filter_out = true;
+    packet_obj.filter_out = true;
 
 
-        let mut filter_results: IndexMap<String, bool> = IndexMap::new();
+    let mut filter_results: IndexMap<String, bool> = IndexMap::new();
 
 
 
-        // ### NUMBER ### 
-        if args.number.is_some() || args.from.is_some() || args.to.is_some() {
+    // ### NUMBER ### 
+    if args.number.is_some() || args.from.is_some() || args.to.is_some() {
 
-            let from = match packet_obj.sip.get("From") {
-                Some(from) => {
-                    
-                    // Try to narrow down the string to the actual number, not the whole URI
-                    let startidx = from.find(":").and_then(|x| Some(x+1)).unwrap_or(0);
-                    let endidx = from.find("@").unwrap_or( from.find(">").unwrap_or(from.len()));
+        let from = match packet_obj.sip.get("From") {
+            Some(from) => {
+                
+                // Try to narrow down the string to the actual number, not the whole URI
+                let startidx = from.find(":").and_then(|x| Some(x+1)).unwrap_or(0);
+                let endidx = from.find("@").unwrap_or( from.find(">").unwrap_or(from.len()));
 
-                    from[startidx..endidx].to_string().to_lowercase()
-                },
-                None => "".to_string()
-            };
-            
-            let to = match packet_obj.sip.get("To") {
-                Some(to) => {
-                    
-                    // Try to narrow down the string to the actual number, not the whole URI
-                    let startidx = to.find(":").and_then(|x| Some(x+1)).unwrap_or(0); // Adds 1 if is_some
-                    let endidx = to.find("@").unwrap_or( to.find(">").unwrap_or(to.len()));
+                from[startidx..endidx].to_string().to_lowercase()
+            },
+            None => "".to_string()
+        };
+        
+        let to = match packet_obj.sip.get("To") {
+            Some(to) => {
+                
+                // Try to narrow down the string to the actual number, not the whole URI
+                let startidx = to.find(":").and_then(|x| Some(x+1)).unwrap_or(0); // Adds 1 if is_some
+                let endidx = to.find("@").unwrap_or( to.find(">").unwrap_or(to.len()));
 
-                    to[startidx..endidx].to_string().to_lowercase()
-                },
-                None => "".to_string()
-            };
+                to[startidx..endidx].to_string().to_lowercase()
+            },
+            None => "".to_string()
+        };
 
-            // Debug:
-            // println!("From: {}", from);
-            // println!("To: {}", to);
+        // Debug:
+        // println!("From: {}", from);
+        // println!("To: {}", to);
 
 
-            // --from
-            if args.from.is_some() {
-                if args.from.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && from.contains(&arg.to_lowercase()) ) {
-                    filter_results.insert("from".to_string(), true);
-                }else {
-                    filter_results.insert("from".to_string(), false);
-                }
-            } 
-            
-            // --to
-            if args.to.is_some() {
-                if args.to.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && to.contains(&arg.to_lowercase()) ) {
-                    filter_results.insert("to".to_string(), true);
-                }else {
-                    filter_results.insert("to".to_string(), false);
-                }
-            } 
-            
-            // --number
-            if args.number.is_some() {
-                if args.number.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && (from.contains(&arg.to_lowercase()) || to.contains(&arg.to_lowercase())) ) {
-                    filter_results.insert("number".to_string(), true);
-                }else {
-                    filter_results.insert("number".to_string(), false);
-                }
+        // --from
+        if args.from.is_some() {
+            if args.from.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && from.contains(&arg.to_lowercase()) ) {
+                filter_results.insert("from".to_string(), true);
+            }else {
+                filter_results.insert("from".to_string(), false);
             }
-            
-        }
-
-
-
-        // ### IP ### 
-        if args.ip.is_some() || args.srcip.is_some() || args.dstip.is_some() {
-
-            if args.srcip.is_some() {
-                if args.srcip.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && parse_to_net(arg).contains(&packet_obj.srcip) ) {
-                    filter_results.insert("srcip".to_string(), true);
-                }else {
-                    filter_results.insert("srcip".to_string(), false);
-                }
+        } 
+        
+        // --to
+        if args.to.is_some() {
+            if args.to.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && to.contains(&arg.to_lowercase()) ) {
+                filter_results.insert("to".to_string(), true);
+            }else {
+                filter_results.insert("to".to_string(), false);
             }
-            
-            if args.dstip.is_some() {
-                if args.dstip.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && parse_to_net(arg).contains(&packet_obj.dstip) ) {
-                    filter_results.insert("dstip".to_string(), true);
-                }else {
-                    filter_results.insert("dstip".to_string(), false);
-                }
-            }
-            
-            if args.ip.is_some() && !args.srcip.is_some() && !args.dstip.is_some() {
-                if args.ip.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && parse_to_net(arg).contains(&packet_obj.srcip) || parse_to_net(arg).contains(&packet_obj.dstip) ) {
-                    filter_results.insert("ip".to_string(), true);
-                }else {
-                    filter_results.insert("ip".to_string(), false);
-                }
+        } 
+        
+        // --number
+        if args.number.is_some() {
+            if args.number.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && (from.contains(&arg.to_lowercase()) || to.contains(&arg.to_lowercase())) ) {
+                filter_results.insert("number".to_string(), true);
+            }else {
+                filter_results.insert("number".to_string(), false);
             }
         }
+        
+    }
 
 
 
-        // ### PORT ### 
-        if args.port.is_some() || args.srcport.is_some() || args.dstport.is_some() {
+    // ### IP ### 
+    if args.ip.is_some() || args.srcip.is_some() || args.dstip.is_some() {
 
-            if args.srcport.is_some() {
-                if args.srcport.as_ref().unwrap().into_iter().any(|arg| &packet_obj.srcport == arg ) {
-                    filter_results.insert("srcport".to_string(), true);
-                }else {
-                    filter_results.insert("srcport".to_string(), false);
-                }
+        if args.srcip.is_some() {
+            if args.srcip.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && parse_to_net(arg).contains(&packet_obj.srcip) ) {
+                filter_results.insert("srcip".to_string(), true);
+            }else {
+                filter_results.insert("srcip".to_string(), false);
             }
-
-            if args.dstport.is_some() {
-                if args.dstport.as_ref().unwrap().into_iter().any(|arg| &packet_obj.dstport == arg ) {
-                    filter_results.insert("srcport".to_string(), true);
-                }else {
-                    filter_results.insert("srcport".to_string(), false);
-                }
+        }
+        
+        if args.dstip.is_some() {
+            if args.dstip.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && parse_to_net(arg).contains(&packet_obj.dstip) ) {
+                filter_results.insert("dstip".to_string(), true);
+            }else {
+                filter_results.insert("dstip".to_string(), false);
             }
-            
-            if args.port.is_some() {
-                if args.port.as_ref().unwrap().into_iter().any(|arg| &packet_obj.srcport == arg || &packet_obj.dstport == arg ) {
-                    filter_results.insert("port".to_string(), true);
-                }else {
-                    filter_results.insert("port".to_string(), false);
-                }
+        }
+        
+        if args.ip.is_some() && !args.srcip.is_some() && !args.dstip.is_some() {
+            if args.ip.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && parse_to_net(arg).contains(&packet_obj.srcip) || parse_to_net(arg).contains(&packet_obj.dstip) ) {
+                filter_results.insert("ip".to_string(), true);
+            }else {
+                filter_results.insert("ip".to_string(), false);
             }
+        }
+    }
 
+
+
+    // ### PORT ### 
+    if args.port.is_some() || args.srcport.is_some() || args.dstport.is_some() {
+
+        if args.srcport.is_some() {
+            if args.srcport.as_ref().unwrap().into_iter().any(|arg| &packet_obj.srcport == arg ) {
+                filter_results.insert("srcport".to_string(), true);
+            }else {
+                filter_results.insert("srcport".to_string(), false);
+            }
         }
 
+        if args.dstport.is_some() {
+            if args.dstport.as_ref().unwrap().into_iter().any(|arg| &packet_obj.dstport == arg ) {
+                filter_results.insert("srcport".to_string(), true);
+            }else {
+                filter_results.insert("srcport".to_string(), false);
+            }
+        }
+        
+        if args.port.is_some() {
+            if args.port.as_ref().unwrap().into_iter().any(|arg| &packet_obj.srcport == arg || &packet_obj.dstport == arg ) {
+                filter_results.insert("port".to_string(), true);
+            }else {
+                filter_results.insert("port".to_string(), false);
+            }
+        }
+
+    }
 
 
-        // ### INTERNAL ### 
-        if !args.internal && (packet_obj.srcip.is_private() && packet_obj.dstip.is_private()) {
-            filter_results.insert("internal".to_string(), false);
+
+    // ### INTERNAL ### 
+    if !args.internal && (packet_obj.srcip.is_private() && packet_obj.dstip.is_private()) {
+        filter_results.insert("internal".to_string(), false);
+    }else{
+        filter_results.insert("internal".to_string(), true);
+    }
+
+
+
+    // ### CALL-ID ### 
+    if args.call_id.is_some() {
+
+        let empty = "".to_string();
+        let cid = packet_obj.sip.get("Call-ID").unwrap_or(&empty);
+
+        if args.call_id.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && cid.contains(arg)) {
+            filter_results.insert("call_id".to_string(), true);
         }else{
-            filter_results.insert("internal".to_string(), true);
+            filter_results.insert("call_id".to_string(), false);
         }
 
+    }
 
 
-        // ### CALL-ID ### 
-        if args.call_id.is_some() {
 
-            let empty = "".to_string();
-            let cid = packet_obj.sip.get("Call-ID").unwrap_or(&empty);
-
-            if args.call_id.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && cid.contains(arg)) {
-                filter_results.insert("call_id".to_string(), true);
-            }else{
-                filter_results.insert("call_id".to_string(), false);
-            }
-
+    // ### SIP-METHOD / RES-TEXT ### 
+    if args.method.is_some() {
+        if args.method.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && (packet_obj.sip_method.to_uppercase().contains(&arg.to_uppercase()) || packet_obj.response_text.to_uppercase().contains(&arg.to_uppercase())) ) {
+            filter_results.insert("method".to_string(), true);
+        }else {
+            filter_results.insert("method".to_string(), false);
         }
+    }
 
 
 
-        // ### SIP-METHOD / RES-TEXT ### 
-        if args.method.is_some() {
-            if args.method.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && (packet_obj.sip_method.to_uppercase().contains(&arg.to_uppercase()) || packet_obj.response_text.to_uppercase().contains(&arg.to_uppercase())) ) {
-                filter_results.insert("method".to_string(), true);
+    // ### STATUS-CODE ### 
+    if args.status_code.is_some() {
+        if args.status_code.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && packet_obj.response_code.starts_with(arg)) {
+            filter_results.insert("status_code".to_string(), true);
+        }else {
+            filter_results.insert("status_code".to_string(), false);
+        }
+    }
+
+
+
+    // ### CSEQ / METHOD ### 
+    if args.cseq_method.is_some() {
+
+        let empty = "".to_string();
+        let cseq = packet_obj.sip.get("CSeq").unwrap_or(&empty).to_lowercase();
+
+        if !cseq.is_empty() {
+            if args.cseq_method.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && cseq.contains(&arg.to_lowercase()) ) {
+                filter_results.insert("cseq_method".to_string(), true);
             }else {
-                filter_results.insert("method".to_string(), false);
+                filter_results.insert("cseq_method".to_string(), false);
+
             }
         }
+    }
 
 
 
-        // ### STATUS-CODE ### 
-        if args.status_code.is_some() {
-            if args.status_code.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && packet_obj.response_code.starts_with(arg)) {
-                filter_results.insert("status_code".to_string(), true);
-            }else {
-                filter_results.insert("status_code".to_string(), false);
-            }
+    // ### STRING ### 
+    if args.string.is_some() {
+        if args.string.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && packet_buffer.into_iter().any(|line| line.to_lowercase().contains(&arg.to_lowercase())) ) {
+            filter_results.insert("string".to_string(), true);
+        }else {
+            filter_results.insert("string".to_string(), false);
         }
+    }
 
 
 
-        // ### CSEQ / METHOD ### 
-        if args.cseq_method.is_some() {
+    // ### TIME ###
+    if args.time.is_some() {
 
-            let empty = "".to_string();
-            let cseq = packet_obj.sip.get("CSeq").unwrap_or(&empty).to_lowercase();
+        let timevec = args.time.as_ref().unwrap();
 
-            if !cseq.is_empty() {
-                if args.cseq_method.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && cseq.contains(&arg.to_lowercase()) ) {
-                    filter_results.insert("cseq_method".to_string(), true);
-                }else {
-                    filter_results.insert("cseq_method".to_string(), false);
+        let errstr_nl = "\n        ".to_string();
+        let errstr_format = "A Time has to be formatted in one of the following Ways: '13', '13:07' or '13:07:21'. \n        (Zero-padded pairs of two digits separated by colons)".to_string();
 
-                }
-            }
-        }
+        let mut fromtime: Option<NaiveTime> = None;
+        let mut totime: Option<NaiveTime> = None;
 
+        if timevec.len() == 2 {
 
+            // Parse the two time strings
+            for (timeidx, timestr) in timevec.into_iter().enumerate() {
 
-        // ### STRING ### 
-        if args.string.is_some() {
-            if args.string.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && packet_buffer.into_iter().any(|line| line.to_lowercase().contains(&arg.to_lowercase())) ) {
-                filter_results.insert("string".to_string(), true);
-            }else {
-                filter_results.insert("string".to_string(), false);
-            }
-        }
+                if timestr.trim().len() != 0 {
+                    
+                    let split:Split<&str> = timestr.split(":");
+                    let splitlen: usize = split.clone().count();
 
+                    if splitlen < 1 || splitlen > 3 {
+                        println!("[Error] {}", errstr_format);
+                        std::process::exit(1);
+                    }
 
+                    let mut hour: u32 = 0;
+                    let mut minute: u32 = 0;
+                    let mut second: u32 = 0;
 
-        // ### TIME ###
-        if args.time.is_some() {
+                    // Evaluate every hour, minute an second 
+                    for (idx, sp) in split.enumerate() {
 
-            let timevec = args.time.as_ref().unwrap();
-
-            let errstr_nl = "\n        ".to_string();
-            let errstr_format = "A Time has to be formatted in one of the following Ways: '13', '13:07' or '13:07:21'. \n        (Zero-padded pairs of two digits separated by colons)".to_string();
-
-            let mut fromtime: Option<NaiveTime> = None;
-            let mut totime: Option<NaiveTime> = None;
-
-            if timevec.len() == 2 {
-
-                // Parse the two time strings
-                for (timeidx, timestr) in timevec.into_iter().enumerate() {
-
-                    if timestr.trim().len() != 0 {
-                        
-                        let split:Split<&str> = timestr.split(":");
-                        let splitlen: usize = split.clone().count();
-
-                        if splitlen < 1 || splitlen > 3 {
+                        if sp.len() != 2 {
                             println!("[Error] {}", errstr_format);
                             std::process::exit(1);
                         }
 
-                        let mut hour: u32 = 0;
-                        let mut minute: u32 = 0;
-                        let mut second: u32 = 0;
-
-                        // Evaluate every hour, minute an second 
-                        for (idx, sp) in split.enumerate() {
-
-                            if sp.len() != 2 {
-                                println!("[Error] {}", errstr_format);
-                                std::process::exit(1);
+                        match idx {
+                            0 => {
+                                hour = sp.parse().unwrap_or(99);
+                            },
+                            1 => {
+                                minute = sp.parse().unwrap_or(99);
+                            }, 
+                            2 => {
+                                second = sp.parse().unwrap_or(99);
                             }
+                            _ => {}
+                        }
+                    }
 
-                            match idx {
-                                0 => {
-                                    hour = sp.parse().unwrap_or(99);
-                                },
-                                1 => {
-                                    minute = sp.parse().unwrap_or(99);
-                                }, 
-                                2 => {
-                                    second = sp.parse().unwrap_or(99);
-                                }
-                                _ => {}
-                            }
+                    if timeidx == 0 {
+                        fromtime = NaiveTime::from_hms_opt(hour, minute, second);
+                            
+                        if fromtime.is_none() {
+                            println!("[Error] Unable to parse Time '{}'.{}{}", timevec.join("_"), errstr_nl, errstr_format);
+                            std::process::exit(1);
                         }
 
-                        if timeidx == 0 {
-                            fromtime = NaiveTime::from_hms_opt(hour, minute, second);
-                                
-                            if fromtime.is_none() {
-                                println!("[Error] Unable to parse Time '{}'.{}{}", timevec.join("_"), errstr_nl, errstr_format);
-                                std::process::exit(1);
-                            }
-
-                        }else if timeidx == 1 {
-                            totime = NaiveTime::from_hms_opt(hour, minute, second);
-                                
-                            if totime.is_none() {
-                                println!("[Error] Unable to parse Time '{}'.{}{}", timevec.join("_"), errstr_nl, errstr_format);
-                                std::process::exit(1);
-                            }
+                    }else if timeidx == 1 {
+                        totime = NaiveTime::from_hms_opt(hour, minute, second);
+                            
+                        if totime.is_none() {
+                            println!("[Error] Unable to parse Time '{}'.{}{}", timevec.join("_"), errstr_nl, errstr_format);
+                            std::process::exit(1);
                         }
                     }
                 }
+            }
 
+        }else{
+            println!("[Error] To pass a Time Filter two values are needed, separated by an underscore (_). Like '-t 12:48_13:25' or '-t _15:37'. \n        Not providing a value on one side filters from/to the beginning/end of the file to/from the given time.{}{}", errstr_nl, errstr_format);
+            std::process::exit(1);
+        }
+
+
+        if fromtime.is_some() && totime.is_some() {
+
+            if packet_obj.time.time() >= fromtime.unwrap() && packet_obj.time.time() <= totime.unwrap(){
+                filter_results.insert("time".to_string(), true);
             }else{
-                println!("[Error] To pass a Time Filter two values are needed, separated by an underscore (_). Like '-t 12:48_13:25' or '-t _15:37'. \n        Not providing a value on one side filters from/to the beginning/end of the file to/from the given time.{}{}", errstr_nl, errstr_format);
-                std::process::exit(1);
+                filter_results.insert("time".to_string(), false);
             }
-
-
-            if fromtime.is_some() && totime.is_some() {
-
-                if packet_obj.time.time() >= fromtime.unwrap() && packet_obj.time.time() <= totime.unwrap(){
-                    filter_results.insert("time".to_string(), true);
-                }else{
-                    filter_results.insert("time".to_string(), false);
-                }
-                
-            } else if fromtime.is_some() && totime.is_none() {
-                
-                if packet_obj.time.time() >= fromtime.unwrap() {
-                    filter_results.insert("time".to_string(), true);
-                }else {
-                    filter_results.insert("time".to_string(), false);
-                }
-                
-            } else if fromtime.is_none() && totime.is_some() {
-                
-                if packet_obj.time.time() <= totime.unwrap() {
-                    filter_results.insert("time".to_string(), true);
-                }else{
-                    filter_results.insert("time".to_string(), false);
-                }
-
-            } else {
-                println!("[Error] To pass a Time Filter two values are needed, separated by an underscore (_). Like '-t 12:48_13:25' or '-t _15:37'. \n        Not providing a value on one side filters from/to the beginning/end of the file to/from the given time.{}{}", errstr_nl, errstr_format);
-                std::process::exit(1);
-            }
-
-        }
-
-
-
-        // ### REQUEST ### 
-        if args.request {
-            if !packet_obj.isresponse{
-                filter_results.insert("request".to_string(), true);
+            
+        } else if fromtime.is_some() && totime.is_none() {
+            
+            if packet_obj.time.time() >= fromtime.unwrap() {
+                filter_results.insert("time".to_string(), true);
             }else {
-                filter_results.insert("request".to_string(), false);
+                filter_results.insert("time".to_string(), false);
             }
-        }
-
-
-
-        // ### RESPONSE ### 
-        if args.response {
-            if packet_obj.isresponse{
-                filter_results.insert("response".to_string(), true);
-            }else {
-                filter_results.insert("response".to_string(), false);
-            }
-        }
-        
-
-
-
-        // ### Evalutes Package treatment based on Filter joining Method ###
-            if !args.or_filter {
-                // AND
-                if !args.not_filter && filter_results.values().into_iter().all(|x| *x) { 
-                    packet_obj.filter_out = false; 
-                    
-                }else if args.not_filter && filter_results.values().into_iter().all(|x| !*x) {
-                    packet_obj.filter_out = false;
-                }
+            
+        } else if fromtime.is_none() && totime.is_some() {
+            
+            if packet_obj.time.time() <= totime.unwrap() {
+                filter_results.insert("time".to_string(), true);
             }else{
-                // OR
-                if !args.not_filter && filter_results.values().into_iter().any(|x| *x) {
-                    packet_obj.filter_out = false;
-                } else if args.not_filter && filter_results.values().into_iter().any(|x| !*x) {
-                    packet_obj.filter_out = false;
-                }
+                filter_results.insert("time".to_string(), false);
             }
 
-        // // DEBUG
-        // for x in &filter_results {
-        //     println!("-> {:?}", x);
-        // }
-        // print!("\n");
-        
+        } else {
+            println!("[Error] To pass a Time Filter two values are needed, separated by an underscore (_). Like '-t 12:48_13:25' or '-t _15:37'. \n        Not providing a value on one side filters from/to the beginning/end of the file to/from the given time.{}{}", errstr_nl, errstr_format);
+            std::process::exit(1);
+        }
+
+    }
+
+
+
+    // ### REQUEST ### 
+    if args.request {
+        if !packet_obj.isresponse{
+            filter_results.insert("request".to_string(), true);
+        }else {
+            filter_results.insert("request".to_string(), false);
+        }
+    }
+
+
+
+    // ### RESPONSE ### 
+    if args.response {
+        if packet_obj.isresponse{
+            filter_results.insert("response".to_string(), true);
+        }else {
+            filter_results.insert("response".to_string(), false);
+        }
+    }
+    
+
+
+
+    // ### Evalutes Package treatment based on Filter joining Method ###
+    if !args.or_filter {
+        // AND
+        if !args.not_filter && filter_results.values().into_iter().all(|x| *x) { 
+            packet_obj.filter_out = false; 
+            
+        }else if args.not_filter && filter_results.values().into_iter().all(|x| !*x) {
+            packet_obj.filter_out = false;
+        }
+    }else{
+        // OR
+        if !args.not_filter && filter_results.values().into_iter().any(|x| *x) {
+            packet_obj.filter_out = false;
+        } else if args.not_filter && filter_results.values().into_iter().any(|x| !*x) {
+            packet_obj.filter_out = false;
+        }
+    }
+
+    // // DEBUG
+    // for x in &filter_results {
+    //     println!("-> {:?}", x);
     // }
-
+    // print!("\n");
+        
 }
 
 
