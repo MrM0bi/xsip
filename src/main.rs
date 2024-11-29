@@ -43,7 +43,7 @@ const SIP_METHODS: &[&str] = &["INVITE", "ACK", "BYE", "CANCEL", "REGISTER", "OP
 ///   `xsip /home/log/pcscf.1 -a 200 -q INVITE -i 151.123.321.123;` : Lists all '200 OK' Responses to previous INVITEs that where sent from/to IP 151.123.321.123
 ///   `xsip /home/log/pcscf.1 -s "Asterisk";`                       : Lists all Packets containing the String "Asterisk" somewhere
 #[derive(Parser, Debug)]
-#[command(author="Benjamin H.", version="0.2.2", about, verbatim_doc_comment, override_usage="xsip [INPUT_FILE] [OPTIONS]")]
+#[command(author="Benjamin H.", version="0.2.6", about, verbatim_doc_comment, override_usage="xsip [INPUT_FILE] [OPTIONS]")]
 struct Args {
 
     /// Path of pcscf.1 / ibcf.1 Log-file
