@@ -1,6 +1,6 @@
 [package]
 name = "xsip"
-version = "0.2.7"
+version = "0.2.8"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -14,3 +14,4 @@ indexmap = "2.2.6"
 ipnet = "2.9.0"
 flate2 = "1.0.30"
 colored = "2.1.0"
+regex = "1.11.1"
