@@ -4,6 +4,7 @@ use flate2::read::GzDecoder;
 use indexmap::IndexMap;
 use ipnet::Ipv4Net;
 use notify::event::{DataChange, ModifyKind};
+use regex::Regex;
 extern crate atty;
 use core::time;
 use std::ffi::OsStr;
@@ -125,6 +126,10 @@ struct Args {
     /// Filter Packets by String (case-insensitive)
     #[arg(short, long = "string-search", num_args=1.., value_delimiter=',')]
     string: Option<Vec<String>>,
+
+    /// Filter Packets by RegEx (case-sensitive)
+    #[arg(short, long = "regex-search")]
+    regex: Option<String>,
 
     /// Filter Packets by Time
     /// 
@@ -774,6 +779,32 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
 
 
 
+    // ### REGEX ### 
+    if args.regex.is_some() {
+
+        if !args.regex.as_ref().unwrap().trim().is_empty() {
+            
+            match Regex::new(args.regex.as_ref().unwrap()) {
+                Ok(rex) => {
+                    if packet_buffer.into_iter().any(|line| rex.is_match(line)) {
+                        filter_results.insert("string".to_string(), true);
+                    }else{
+                        filter_results.insert("string".to_string(), false);
+                    }
+                },
+                Err(_e) => {
+                    println!("[Error] Unable to parse Regular Expression");
+                    std::process::exit(1);
+                }
+            }
+
+        }else {
+            filter_results.insert("string".to_string(), false);
+        }
+    }
+
+
+
     // ### TIME ###
     if args.time.is_some() {
 
@@ -926,10 +957,10 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
     }
 
     // // DEBUG
-    // for x in &filter_results {
-    //     println!("-> {:?}", x);
-    // }
     // print!("\n");
+    // for x in &filter_results {
+    //     println!("| -> {:?}", x);
+    // }
         
 }
 
