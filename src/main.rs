@@ -123,11 +123,11 @@ struct Args {
     #[arg(short = 'q', long = "cseq", num_args=1.., value_delimiter=',')]
     cseq_method: Option<Vec<String>>,
 
-    /// Filter Packets by String (case-insensitive)
+    /// Filter (Raw) Packets by String (case-insensitive)
     #[arg(short, long = "string-search", num_args=1.., value_delimiter=',')]
     string: Option<Vec<String>>,
 
-    /// Filter Packets by RegEx (case-sensitive)
+    /// Filter (Raw) Packets by RegEx (case-sensitive)
     #[arg(short, long = "regex-search")]
     regex: Option<String>,
 
