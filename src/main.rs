@@ -461,7 +461,7 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
                         _ = writeln!(io::stdout(), "{}", pbl)
                     }
                 }
-                print!("\n");
+                _ = write!(io::stdout(), "\n");
             }
 
         
@@ -565,7 +565,7 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
                             }
 
                         }
-                        print!("\n");
+                        _ = write!(io::stdout(), "\n");
                     }
                     
 
@@ -587,7 +587,7 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
                                 _ = writeln!(io::stdout(), "{}", value);
                             }
                         }
-                        print!("\n");
+                        _ = write!(io::stdout(), "\n");
                     }
                     
 
@@ -596,8 +596,7 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
                         for value in &packet_obj.other {
                             _ = writeln!(io::stdout(), "{}", value.dimmed())
                         }
-                        _ = writeln!(io::stderr(), "[WARNING] This Packet contained the above Lines which do not follow the 'Header: Value' or 'a=sdpvalue' structure");
-                        print!("\n");
+                        _ = writeln!(io::stderr(), "[WARNING] This Packet contained the above Lines which do not follow the 'Header: Value' or 'a=sdpvalue' structure\n");
                     }
 
                     // println!("---");
