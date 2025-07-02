@@ -217,6 +217,11 @@ struct Args {
     internal: bool,
 
 
+    /// Filter Packets by SDP, only show the ones that have SDP
+    #[arg(long)]
+    hassdp: bool,
+
+
     /// Prints the Packets Info line and Basic SIP Headers only 
     #[arg(short = 'R', long = "reduced")]
     print_reduced: bool,
@@ -225,9 +230,9 @@ struct Args {
     #[arg(long = "raw")]
     print_raw: bool,
 
-    /// Prints the Packets without SDP
-    #[arg(long = "no-sdp")]
-    no_sdp: bool,
+    /// Prints the Packets but without SDP (this is not a filter, just a different display mode)
+    #[arg(long = "nosdp")]
+    nosdp: bool,
 }
 
 
@@ -448,7 +453,7 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
 
             }else{
                 for pbl in packet_buffer {
-                    if args.no_sdp {
+                    if args.nosdp {
                         if &pbl[1..2] != "=" {
                             _ = writeln!(io::stdout(), "{}", pbl)
                         }
@@ -565,7 +570,7 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
                     
 
                     // Print SDP
-                    if packet_obj.sdp.len() > 0 && !args.no_sdp {
+                    if packet_obj.sdp.len() > 0 && !args.nosdp {
                         for value in &packet_obj.sdp {
                             
                             // ### RTP IP ###
@@ -1013,6 +1018,17 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
             filter_results.insert("response".to_string(), true);
         }else {
             filter_results.insert("response".to_string(), false);
+        }
+    }
+
+
+
+    // ### SDP ### 
+    if args.hassdp {
+        if packet_obj.sdp.len() > 0 {
+            filter_results.insert("sdp".to_string(), true);
+        }else {
+            filter_results.insert("sdp".to_string(), false);
         }
     }
     
