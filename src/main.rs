@@ -79,21 +79,21 @@ struct Args {
     /// Filter Packets by number (From or To)
     /// 
     ///   Filters using "contains" (works with/around c60 numbers)
-    ///   Example: -n "471064"    matches "0471064500" and "+390471064400"
+    ///   Example: -n "471064"    matches "0471064500" and "39C600420770471064400"
     #[arg(short, long, num_args=1.., value_delimiter=',', verbatim_doc_comment)]
     number: Option<Vec<String>>,
 
     /// Filter Packets by From-number
     /// 
     ///   Filters using "contains"
-    ///   Example: --from "471064"    matches "0471064500" and "+390471064400"
+    ///   Example: --from "471064"    matches "0471064500" and "39C600420770471064400"
     #[arg(long, num_args=1.., value_delimiter=',', verbatim_doc_comment)]
     from: Option<Vec<String>>,
 
     /// Filter Packets by To-number
     /// 
     ///   Filters using "contains"
-    ///   Example: --to "471064"    matches "0471064500" and "+390471064400"
+    ///   Example: --to "471064"    matches "0471064500" and "39C600420770471064400"
     #[arg(long, num_args=1.., value_delimiter=',', verbatim_doc_comment)]
     to: Option<Vec<String>>,
 
@@ -514,7 +514,7 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
                                 // ### FROM / TO ###
                                 }else if key == "From" || key == "To" || key == "P-Asserted-Identity" {
                                     // Try to narrow down the string to the actual number, not the whole URI
-                                    let startidx = valp.find(":").and_then(|x| Some(x+1)).unwrap_or(0);
+                                    let startidx = valp.find("sip:").and_then(|x| Some(x+4)).unwrap_or(0);
                                     let mut endidx = valp.find("@").unwrap_or( valp.find(">").unwrap_or(valp.len()));
                                     if endidx > valp.find(";").unwrap_or(valp.len()) {
                                         endidx = valp.find(";").unwrap_or(valp.len())
@@ -611,7 +611,7 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
 
                     // From
                     let mut c_from: String = packet_obj.sip.get("From").unwrap_or(&_pstatus).to_string();
-                    let startidx = c_from.find(":").and_then(|x| Some(x+1)).unwrap_or(0);
+                    let startidx = c_from.find("sip:").and_then(|x| Some(x+4)).unwrap_or(0);
                     let mut endidx = c_from.find("@").unwrap_or( c_from.find(">").unwrap_or(c_from.len()));
                     if endidx > c_from.find(";").unwrap_or(c_from.len()) {
                         endidx = c_from.find(";").unwrap_or(c_from.len())
@@ -620,7 +620,7 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
 
                     // To
                     let mut c_to: String = packet_obj.sip.get("To").unwrap_or(&_pstatus).to_string();
-                    let startidx = c_to.find(":").and_then(|x| Some(x+1)).unwrap_or(0);
+                    let startidx = c_to.find("sip:").and_then(|x| Some(x+4)).unwrap_or(0);
                     let mut endidx = c_to.find("@").unwrap_or( c_to.find(">").unwrap_or(c_to.len()));
                     if endidx > c_to.find(";").unwrap_or(c_to.len()) {
                         endidx = c_to.find(";").unwrap_or(c_to.len())
