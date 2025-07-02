@@ -391,9 +391,9 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
             }
 
             if packet_obj.outgoing {
-                _pinfo = format!("({}{}) {}:{} -->> {}:{} ({} bytes)", date, packet_obj.time.format("%H:%M:%S").to_string().truecolor(69, 142, 237), packet_obj.srcip.to_string().truecolor(113, 193, 116), packet_obj.srcport.to_string().truecolor(76, 175, 80), packet_obj.dstip.to_string().truecolor(247, 110, 100), packet_obj.dstport.to_string().truecolor(244, 67, 54), packet_obj.payload_size);
+                _pinfo = format!("({}{}) {}:{} -->> {}:{} ({} bytes)", date, packet_obj.time.format("%H:%M:%S.%3f").to_string().truecolor(69, 142, 237), packet_obj.srcip.to_string().truecolor(113, 193, 116), packet_obj.srcport.to_string().truecolor(76, 175, 80), packet_obj.dstip.to_string().truecolor(247, 110, 100), packet_obj.dstport.to_string().truecolor(244, 67, 54), packet_obj.payload_size);
             }else{
-                _pinfo = format!("({}{}) {}:{} <<-- {}:{} ({} bytes)", date, packet_obj.time.format("%H:%M:%S").to_string().truecolor(69, 142, 237), packet_obj.dstip.to_string().truecolor(113, 193, 116), packet_obj.dstport.to_string().truecolor(76, 175, 80), packet_obj.srcip.to_string().truecolor(247, 110, 100), packet_obj.srcport.to_string().truecolor(244, 67, 54), packet_obj.payload_size);
+                _pinfo = format!("({}{}) {}:{} <<-- {}:{} ({} bytes)", date, packet_obj.time.format("%H:%M:%S.%3f").to_string().truecolor(69, 142, 237), packet_obj.dstip.to_string().truecolor(113, 193, 116), packet_obj.dstport.to_string().truecolor(76, 175, 80), packet_obj.srcip.to_string().truecolor(247, 110, 100), packet_obj.srcport.to_string().truecolor(244, 67, 54), packet_obj.payload_size);
             }
             println!("{}", _pinfo);
 
@@ -976,7 +976,7 @@ fn parse_packet(packet_buffer: &mut Vec<String>, packet_obj: &mut Packet, date: 
             0 => {
                 
                 if line.starts_with("("){
-                    
+
                     // Split the line into sections by spaces 
                     let info: Vec<&str> = line.split(" ").into_iter().collect();
                     
