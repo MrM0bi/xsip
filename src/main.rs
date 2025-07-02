@@ -787,9 +787,9 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
             match Regex::new(args.regex.as_ref().unwrap()) {
                 Ok(rex) => {
                     if packet_buffer.into_iter().any(|line| rex.is_match(line)) {
-                        filter_results.insert("string".to_string(), true);
+                        filter_results.insert("regex".to_string(), true);
                     }else{
-                        filter_results.insert("string".to_string(), false);
+                        filter_results.insert("regex".to_string(), false);
                     }
                 },
                 Err(_e) => {
@@ -799,7 +799,7 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
             }
 
         }else {
-            filter_results.insert("string".to_string(), false);
+            filter_results.insert("regex".to_string(), false);
         }
     }
 
