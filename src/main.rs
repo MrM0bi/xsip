@@ -113,7 +113,7 @@ struct Args {
     ///   Filters using "exact match" for single IPs and "contains" with a Range of IPs.
     ///   Example: -i "92.243.167.83"    matches if Source IP is "92.243.167.83"
     ///            -i "10.50.16.0/24"    matches if Source IP is inside the Range "10.50.16.0-255"
-    #[arg(long, num_args=1.., value_delimiter=',')]
+    #[arg(long, num_args=1.., value_delimiter=',', verbatim_doc_comment)]
     srcip: Option<Vec<String>>,
 
     /// Filter Packets by DST IP
@@ -122,7 +122,7 @@ struct Args {
     ///   Filters using "exact match" for single IPs and "contains" with a Range of IPs.
     ///   Example: -i "92.243.167.83"    matches if Destination IP is "92.243.167.83"
     ///            -i "10.50.16.0/24"    matches if Destination IP is inside the Range "10.50.16.0-255"
-    #[arg(long, num_args=1.., value_delimiter=',')]
+    #[arg(long, num_args=1.., value_delimiter=',', verbatim_doc_comment)]
     dstip: Option<Vec<String>>,
 
     
@@ -130,21 +130,21 @@ struct Args {
     /// 
     ///   Filters using "exact match"
     ///   Example: -p "5060"    matches if either Source or Destination Port are "5060"
-    #[arg(short, long, num_args=1.., value_delimiter=',')]
+    #[arg(short, long, num_args=1.., value_delimiter=',', verbatim_doc_comment)]
     port: Option<Vec<u16>>,
 
     /// Filter Packets by SRC Port
     /// 
     ///   Filters using "exact match"
     ///   Example: --srcport "5060"    matches if Source Port is "5060"
-    #[arg(long, num_args=1.., value_delimiter=',')]
+    #[arg(long, num_args=1.., value_delimiter=',', verbatim_doc_comment)]
     srcport: Option<Vec<u16>>,
 
     /// Filter Packets by DST Port
     /// 
     ///   Filters using "exact match"
     ///   Example: --destport "5060"    matches if Destination Port is "5060"
-    #[arg(long, num_args=1.., value_delimiter=',')]
+    #[arg(long, num_args=1.., value_delimiter=',', verbatim_doc_comment)]
     dstport: Option<Vec<u16>>,
 
 
@@ -152,14 +152,14 @@ struct Args {
     /// 
     ///   Filters using "contains"
     ///   Example: -c "GA-006d5207"    matches "GA-006d5207" or "07745-GA-006d5207-6d4289c74"
-    #[arg(short, long = "cid", num_args=1.., value_delimiter=',')]
+    #[arg(short, long = "cid", num_args=1.., value_delimiter=',', verbatim_doc_comment)]
     call_id: Option<Vec<String>>,
 
     /// Filter Packets by SIP Method or Response Text (REGISTER, INVITE, OPTIONS, etc.; Trying, Nonce, etc. )
     /// 
     ///   Filters using "contains"
     ///   Example: -m "EGIST"    matches "REGISTER" or "Invalid Register"
-    #[arg(short, long, num_args=1.., value_delimiter=',')]
+    #[arg(short, long, num_args=1.., value_delimiter=',', verbatim_doc_comment)]
     method: Option<Vec<String>>,
 
     /// Filter Packets by Response Status Code (302, 404, 5, etc.)
@@ -167,7 +167,7 @@ struct Args {
     ///   Filters using "starting_with"
     ///   Example: -m "302"    matches all Responses with Status Codes "302"
     ///            -m "5"    matches all Responses with Status Codes that begin with 5 "500", "502" etc.
-    #[arg(short = 'a', long, num_args=1.., value_delimiter=',')]
+    #[arg(short = 'a', long, num_args=1.., value_delimiter=',', verbatim_doc_comment)]
     status_code: Option<Vec<String>>,
 
     /// Filter Packets by CSeq Sequence number or Method (2547 or REGISTER, INVITE, OPTIONS, etc.)
@@ -178,29 +178,29 @@ struct Args {
     ///   Filters using "contains"
     ///   Example: -m "EGIST"    matches "REGISTER"
     ///            -m "2547"    matches Sequence number "2547" (Response to Package with number 2547)
-    #[arg(short = 'q', long = "cseq", num_args=1.., value_delimiter=',')]
+    #[arg(short = 'q', long = "cseq", num_args=1.., value_delimiter=',', verbatim_doc_comment)]
     cseq_method: Option<Vec<String>>,
 
     /// Filter (Raw) Packets by String (case-insensitive)
     /// 
     ///   Filters using "contains"
     ///   Searches line by line for the given text. Maches the whole Packet if one line contains it.
-    #[arg(short, long = "string-search", num_args=1.., value_delimiter=',')]
+    #[arg(short, long = "string-search", num_args=1.., value_delimiter=',', verbatim_doc_comment)]
     string: Option<Vec<String>>,
 
     /// Filter (Raw) Packets by RegEx (case-sensitive)
     /// 
     ///   Filters using "contains/regex"
     ///   Searches line by line for the given text with Regex. Maches the whole Packet if one line matches.
-    #[arg(short, long = "regex-search")]
+    #[arg(short, long = "regex-search", verbatim_doc_comment)]
     regex: Option<String>,
 
     /// Filter Packets by Time
     /// 
-    /// Pass two time values separated by an underscore `_`. Like '-t 12:48_13:25' or '-t _15:37'.
-    /// A Time has to be formatted in one of the following Ways: '13', '13:07' or '13:07:21'.
-    /// Not providing a value on one side filters from/to the beginning/end of the file to/from the given time.
-    #[arg(short, long, value_delimiter='_', verbatim_doc_comment)]
+    ///   Pass two time values separated by an underscore `_`. Like '-t 12:48_13:25' or '-t _15:37'.
+    ///   A Time has to be formatted in one of the following Ways: '13', '13:07' or '13:07:21'.
+    ///   Not providing a value on one side filters from/to the beginning/end of the file to/from the given time.
+    #[arg(short, long, value_delimiter='_', verbatim_doc_comment, verbatim_doc_comment)]
     time: Option<Vec<String>>,
 
     /// Match only Request Packets
