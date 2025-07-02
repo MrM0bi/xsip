@@ -1,4 +1,5 @@
 use chrono::{Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
+use clap::builder::styling::{self, AnsiColor};
 use clap::Parser;
 use flate2::read::GzDecoder;
 use indexmap::IndexMap;
@@ -11,7 +12,7 @@ use std::ffi::OsStr;
 use std::fmt::Debug;
 use std::net::Ipv4Addr;
 use std::path::PathBuf;
-use std::io::{self, BufRead, BufReader, ErrorKind};
+use std::io::{self, BufRead, BufReader, ErrorKind, Write};
 use std::str::Split;
 use std::{fs, thread, usize};
 use std::io::Seek;
@@ -22,6 +23,12 @@ use colored::*;
 
 
 const SIP_METHODS: &[&str] = &["INVITE", "ACK", "BYE", "CANCEL", "REGISTER", "OPTIONS", "PRACK", "UPDATE", "SUBSCRIBE", "NOTIFY", "PUBLISH", "INFO", "REFER", "MESSAGE"];
+
+const STYLES: styling::Styles = styling::Styles::styled()
+    .header(AnsiColor::Yellow.on_default())
+    .usage(AnsiColor::Green.on_default())
+    .literal( AnsiColor::Green.on_default())
+    .placeholder(AnsiColor::Cyan.on_default());
 
 
 /// A command-line tool to extract, filter and Pretty-print SIP messages from Cirpack pcscf.1 and ibcf.1 log files.
@@ -46,7 +53,7 @@ const SIP_METHODS: &[&str] = &["INVITE", "ACK", "BYE", "CANCEL", "REGISTER", "OP
 ///   `xsip /home/log/pcscf.1 -a 200 -q INVITE -i 151.123.321.123;` : Lists all '200 OK' Responses to previous INVITEs that where sent from/to IP 151.123.321.123
 ///   `xsip /home/log/pcscf.1 -s "Asterisk";`                       : Lists all Packets containing the String "Asterisk" somewhere
 #[derive(Parser, Debug)]
-#[command(author="Benjamin H.", version=env!("CARGO_PKG_VERSION"), about, verbatim_doc_comment, override_usage="xsip [INPUT_FILE] [OPTIONS]")]
+#[command(author="Benjamin H.", version=env!("CARGO_PKG_VERSION"), about, verbatim_doc_comment, override_usage="xsip [INPUT_FILE] [OPTIONS]",styles=STYLES)]
 struct Args {
 
     /// Path of pcscf.1 / ibcf.1 Log-file
@@ -54,7 +61,8 @@ struct Args {
 
     /// Follow growing Files; similar to `tail -f`
     /// 
-    /// Hot-reloads deleted and recreated / moved files. Usefull with pcscf.1 / ibcf.1 Log-file when monitoring, since those get archived (moved) once every hour.
+    ///   Hot-reloads deleted and recreated / moved files. Usefull with pcscf.1 / ibcf.1 Log-file when monitoring, 
+    ///   since those get archived (moved) once every hour.
     #[arg(short, long, verbatim_doc_comment)]
     follow: bool,
 
@@ -69,65 +77,121 @@ struct Args {
 
 
     /// Filter Packets by number (From or To)
-    #[arg(short, long, num_args=1.., value_delimiter=',')]
+    /// 
+    ///   Filters using "contains"
+    ///   Example: -n "471064"    matches "0471064500" and "+390471064400"
+    #[arg(short, long, num_args=1.., value_delimiter=',', verbatim_doc_comment)]
     number: Option<Vec<String>>,
 
     /// Filter Packets by From-number
-    #[arg(long, num_args=1.., value_delimiter=',')]
+    /// 
+    ///   Filters using "contains"
+    ///   Example: --from "471064"    matches "0471064500" and "+390471064400"
+    #[arg(long, num_args=1.., value_delimiter=',', verbatim_doc_comment)]
     from: Option<Vec<String>>,
 
     /// Filter Packets by To-number
-    #[arg(long, num_args=1.., value_delimiter=',')]
+    /// 
+    ///   Filters using "contains"
+    ///   Example: --to "471064"    matches "0471064500" and "+390471064400"
+    #[arg(long, num_args=1.., value_delimiter=',', verbatim_doc_comment)]
     to: Option<Vec<String>>,
 
 
     /// Filter Packets by IP (SRC or DST)
-    #[arg(short, long, num_args=1.., value_delimiter=',')]
+    /// 
+    ///   Parses the given IP to a Single IP-Address or a Range. Supports CIDR-Notation
+    ///   Filters using "exact match" for single IPs and "contains" with a Range of IPs.
+    ///   Example: -i "92.243.167.83"    matches if either Source or Destination IP are "92.243.167.83"
+    ///            -i "10.50.16.0/24"    matches if either Source or Destination IP are inside the Range "10.50.16.0-255"
+    #[arg(short, long, num_args=1.., value_delimiter=',', verbatim_doc_comment)]
     ip: Option<Vec<String>>,
 
     /// Filter Packets by SRC IP
+    /// 
+    ///   Parses the given IP to a Single IP-Address or a Range. Supports CIDR-Notation
+    ///   Filters using "exact match" for single IPs and "contains" with a Range of IPs.
+    ///   Example: -i "92.243.167.83"    matches if Source IP is "92.243.167.83"
+    ///            -i "10.50.16.0/24"    matches if Source IP is inside the Range "10.50.16.0-255"
     #[arg(long, num_args=1.., value_delimiter=',')]
     srcip: Option<Vec<String>>,
 
     /// Filter Packets by DST IP
+    /// 
+    ///   Parses the given IP to a Single IP-Address or a Range. Supports CIDR-Notation
+    ///   Filters using "exact match" for single IPs and "contains" with a Range of IPs.
+    ///   Example: -i "92.243.167.83"    matches if Destination IP is "92.243.167.83"
+    ///            -i "10.50.16.0/24"    matches if Destination IP is inside the Range "10.50.16.0-255"
     #[arg(long, num_args=1.., value_delimiter=',')]
     dstip: Option<Vec<String>>,
 
     
     /// Filter Packets by Port (SRC or DST)
+    /// 
+    ///   Filters using "exact match"
+    ///   Example: -p "5060"    matches if either Source or Destination Port are "5060"
     #[arg(short, long, num_args=1.., value_delimiter=',')]
     port: Option<Vec<u16>>,
 
     /// Filter Packets by SRC Port
+    /// 
+    ///   Filters using "exact match"
+    ///   Example: --srcport "5060"    matches if Source Port is "5060"
     #[arg(long, num_args=1.., value_delimiter=',')]
     srcport: Option<Vec<u16>>,
 
     /// Filter Packets by DST Port
+    /// 
+    ///   Filters using "exact match"
+    ///   Example: --destport "5060"    matches if Destination Port is "5060"
     #[arg(long, num_args=1.., value_delimiter=',')]
     dstport: Option<Vec<u16>>,
 
 
     /// Filter Packets by Call-ID
+    /// 
+    ///   Filters using "contains"
+    ///   Example: -c "GA-006d5207"    matches "GA-006d5207" or "07745-GA-006d5207-6d4289c74"
     #[arg(short, long = "cid", num_args=1.., value_delimiter=',')]
     call_id: Option<Vec<String>>,
 
     /// Filter Packets by SIP Method or Response Text (REGISTER, INVITE, OPTIONS, etc.; Trying, Nonce, etc. )
+    /// 
+    ///   Filters using "contains"
+    ///   Example: -m "EGIST"    matches "REGISTER" or "Invalid Register"
     #[arg(short, long, num_args=1.., value_delimiter=',')]
     method: Option<Vec<String>>,
 
-    /// Filter Packets by Response Status Code (302, 404, 5, etc.) (starting with)
+    /// Filter Packets by Response Status Code (302, 404, 5, etc.)
+    /// 
+    ///   Filters using "starting_with"
+    ///   Example: -m "302"    matches all Responses with Status Codes "302"
+    ///            -m "5"    matches all Responses with Status Codes that begin with 5 "500", "502" etc.
     #[arg(short = 'a', long, num_args=1.., value_delimiter=',')]
     status_code: Option<Vec<String>>,
 
     /// Filter Packets by CSeq Sequence number or Method (2547 or REGISTER, INVITE, OPTIONS, etc.)
+    /// 
+    ///   The Sequence number is a sometimes random but always increasing number that every Request comes with (ex. an INVITE 
+    ///   that has the SeqNum 2547). When sending a Response, it can thus be used to refer to this specific request. This way you can
+    ///   search for a specific transaction.
+    ///   Filters using "contains"
+    ///   Example: -m "EGIST"    matches "REGISTER"
+    ///            -m "2547"    matches Sequence number "2547" (Response to Package with number 2547)
     #[arg(short = 'q', long = "cseq", num_args=1.., value_delimiter=',')]
     cseq_method: Option<Vec<String>>,
 
     /// Filter (Raw) Packets by String (case-insensitive)
+    /// 
+    ///   Filters using "contains"
+    ///   Searches line by line for the given text. Maches the whole Packet if one line contains it.
     #[arg(short, long = "string-search", num_args=1.., value_delimiter=',')]
     string: Option<Vec<String>>,
 
     /// Filter (Raw) Packets by RegEx (case-sensitive)
+    /// 
+    ///   Filters using "contains/regex"
+    ///   Searches line by line for the given text with Regex. Maches the whole Packet if one line matches.
     #[arg(short, long = "regex-search")]
     regex: Option<String>,
 
@@ -1193,8 +1257,7 @@ fn main() {
 
             // Checks if stdin is empty and terminate in case
             if atty::is(atty::Stream::Stdin){
-                // println!("[Error] No input was given. Please provide a file path or use a pipe (The use of `tail -f` is discouraged).\n\n{} xsip [OPTIONS] [INPUT_FILE]", "Usage:".underline());
-                println!("Usage: xsip [INPUT_FILE] [OPTIONS] \nTry 'xsip -h' or 'xsip --help' for more information.");
+                _ = writeln!(io::stdout(), "{} {}", "Usage:".green(), "xsip [INPUT_FILE] [OPTIONS] \nTry 'xsip -h' or 'xsip --help' for more information.");
                 return;
             }
 
