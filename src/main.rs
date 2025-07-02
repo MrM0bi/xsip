@@ -78,7 +78,7 @@ struct Args {
 
     /// Filter Packets by number (From or To)
     /// 
-    ///   Filters using "contains"
+    ///   Filters using "contains" (works with/around c60 numbers)
     ///   Example: -n "471064"    matches "0471064500" and "+390471064400"
     #[arg(short, long, num_args=1.., value_delimiter=',', verbatim_doc_comment)]
     number: Option<Vec<String>>,
@@ -367,6 +367,24 @@ fn parse_to_net(ipv4: &String) -> Ipv4Net {
         }
 
     };
+}
+
+
+
+
+fn numbermachtes(packet_number: &String, compare_number: &str) -> bool {
+
+    let mut packet: String = packet_number.to_string(); // Number as its found in the packet
+
+    // Removes C60 in packet-Number if you don't search for one
+    if let Some(c60idx) = packet.to_lowercase().find("c60") {
+        if !compare_number.to_lowercase().contains("c60") {   
+            packet = format!("{}{}", &packet[..c60idx], &packet[c60idx+9..]);
+        }
+    }
+
+    return packet.to_lowercase().contains(&compare_number.to_lowercase());
+
 }
 
 
@@ -677,7 +695,7 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
 
         // --from
         if args.from.is_some() {
-            if args.from.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && from.contains(&arg.to_lowercase()) ) {
+            if args.from.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && numbermachtes(&from, &arg) ) {
                 filter_results.insert("from".to_string(), true);
             }else {
                 filter_results.insert("from".to_string(), false);
@@ -686,7 +704,7 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
         
         // --to
         if args.to.is_some() {
-            if args.to.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && to.contains(&arg.to_lowercase()) ) {
+            if args.to.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && numbermachtes(&to, &arg) ) {
                 filter_results.insert("to".to_string(), true);
             }else {
                 filter_results.insert("to".to_string(), false);
@@ -695,7 +713,7 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
         
         // --number
         if args.number.is_some() {
-            if args.number.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && (from.contains(&arg.to_lowercase()) || to.contains(&arg.to_lowercase())) ) {
+            if args.number.as_ref().unwrap().into_iter().any(|arg| !arg.trim().is_empty() && (numbermachtes(&from, &arg) || numbermachtes(&to, &arg.to_lowercase())) ) {
                 filter_results.insert("number".to_string(), true);
             }else {
                 filter_results.insert("number".to_string(), false);
