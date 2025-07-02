@@ -357,7 +357,7 @@ fn parse_to_net(ipv4: &String) -> Ipv4Net {
             let inputip: Ipv4Addr = match ipv4.parse() {
                 Ok(ip) => ip,
                 Err(_e) => {
-                    eprintln!("[Error] Unable to parse given IP '{}'", ipv4);
+                    _ = writeln!(io::stderr(), "[Error] Unable to parse given IP '{}'", ipv4);
                     std::process::exit(1);
                 }
             };
@@ -444,16 +444,16 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
         if args.print_raw {
             
             if args.print_reduced {
-                println!("{}", packet_buffer[0]);
+                _ = writeln!(io::stdout(), "{}", packet_buffer[0]);
 
             }else{
                 for pbl in packet_buffer {
                     if args.no_sdp {
                         if &pbl[1..2] != "=" {
-                            println!("{}", pbl)
+                            _ = writeln!(io::stdout(), "{}", pbl)
                         }
                     }else{
-                        println!("{}", pbl)
+                        _ = writeln!(io::stdout(), "{}", pbl)
                     }
                 }
                 print!("\n");
@@ -477,7 +477,7 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
             }else{
                 _pinfo = format!("({}{}) {}:{} <<-- {}:{} ({} bytes)", date, packet_obj.time.format("%H:%M:%S.%3f").to_string().truecolor(69, 142, 237), packet_obj.dstip.to_string().truecolor(113, 193, 116), packet_obj.dstport.to_string().truecolor(76, 175, 80), packet_obj.srcip.to_string().truecolor(247, 110, 100), packet_obj.srcport.to_string().truecolor(244, 67, 54), packet_obj.payload_size);
             }
-            println!("{}", _pinfo);
+            _ = writeln!(io::stdout(), "{}", _pinfo);
 
 
             
@@ -492,7 +492,7 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
                     }else {
                         _pstatus = format!("{} {} {}", color_request_method(&packet_obj.sip_method), packet_obj.request_uri, packet_obj.sip_version);
                     }
-                    println!("{}", _pstatus);
+                    _ = writeln!(io::stdout(), "{}", _pstatus);
                     
                     // Print SIP
                     if packet_obj.sip.len() > 0 {
@@ -504,7 +504,7 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
                                 // ### CALL-ID ###
                                 if key == "Call-ID" {
                                     let atidx = valp.find("@").unwrap_or(valp.len());
-                                    println!("{}: {}{}", key.truecolor(255, 255, 255), valp[..atidx].to_string().truecolor(177, 44, 201), valp[atidx..].to_string());
+                                    _ = writeln!(io::stdout(), "{}: {}{}", key.truecolor(255, 255, 255), valp[..atidx].to_string().truecolor(177, 44, 201), valp[atidx..].to_string());
                                 
                                 // ### FROM / TO ###
                                 }else if key == "From" || key == "To" || key == "P-Asserted-Identity" {
@@ -517,16 +517,16 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
                                     // Check if number contains C60 and is inside number
                                     if let Some(c60idx) = valp.to_lowercase().find("c60").filter(|x| x > &startidx && x < &endidx) {
                                         // The lighter yellow color used for the C60 is not following the Table, i used: #FFC670 / 255, 198, 112
-                                        println!("{}: {}{}{}{}{}", key.truecolor(255, 255, 255), valp[..startidx].to_string(), valp[startidx..c60idx].to_string().truecolor(255, 152, 0), valp[c60idx..c60idx+9].to_string().truecolor(255, 198, 112), valp[c60idx+9..endidx].to_string().truecolor(255, 152, 0), valp[endidx..].to_string());
+                                        _ = writeln!(io::stdout(), "{}: {}{}{}{}{}", key.truecolor(255, 255, 255), valp[..startidx].to_string(), valp[startidx..c60idx].to_string().truecolor(255, 152, 0), valp[c60idx..c60idx+9].to_string().truecolor(255, 198, 112), valp[c60idx+9..endidx].to_string().truecolor(255, 152, 0), valp[endidx..].to_string());
                                     }else{
-                                        println!("{}: {}{}{}", key.truecolor(255, 255, 255), valp[..startidx].to_string(), valp[startidx..endidx].to_string().truecolor(255, 152, 0), valp[endidx..].to_string());
+                                        _ = writeln!(io::stdout(), "{}: {}{}{}", key.truecolor(255, 255, 255), valp[..startidx].to_string(), valp[startidx..endidx].to_string().truecolor(255, 152, 0), valp[endidx..].to_string());
                                     }
 
                                     
                                 // ### CSEQ ###
                                 }else if key == "CSeq" {
                                     let slice = valp.split_at(valp.find(" ").and_then(|x| Some(x+1)).unwrap_or(0));
-                                    println!("{}: {}{}", key.truecolor(255, 255, 255), slice.0, slice.1.to_string().truecolor(26, 115, 232));
+                                    _ = writeln!(io::stdout(), "{}: {}{}", key.truecolor(255, 255, 255), slice.0, slice.1.to_string().truecolor(26, 115, 232));
                                     
                                 // ### Contact ###
                                 }else if key == "Contact" {
@@ -536,24 +536,24 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
                                     let tribracket = valp.find(">").unwrap_or(valp.len());
 
                                     if semicolon == tribracket {
-                                        println!("{}: {}", key.truecolor(255, 255, 255), valp);
+                                        _ = writeln!(io::stdout(), "{}: {}", key.truecolor(255, 255, 255), valp);
                                     }else if semicolon < tribracket{
-                                        println!("{}: {}{}{}", key.truecolor(255, 255, 255), valp[..startidx].to_string(), valp[startidx..semicolon].to_string().truecolor(0, 220, 245), valp[semicolon..].to_string());
+                                        _ = writeln!(io::stdout(), "{}: {}{}{}", key.truecolor(255, 255, 255), valp[..startidx].to_string(), valp[startidx..semicolon].to_string().truecolor(0, 220, 245), valp[semicolon..].to_string());
                                     }else{
-                                        println!("{}: {}{}{}", key.truecolor(255, 255, 255), valp[..startidx].to_string(), valp[startidx..tribracket].to_string().truecolor(0, 220, 245), valp[tribracket..].to_string());
+                                        _ = writeln!(io::stdout(), "{}: {}{}{}", key.truecolor(255, 255, 255), valp[..startidx].to_string(), valp[startidx..tribracket].to_string().truecolor(0, 220, 245), valp[tribracket..].to_string());
                                     }
 
                                 // ### REASON ###
                                 }else if key == "Reason" {
                                     if packet_obj.response_code.parse().unwrap_or(-1) >= 400 {
-                                        println!("{}: {}", key.truecolor(255, 255, 255), valp.truecolor(244, 67, 54).to_string());
+                                        _ = writeln!(io::stdout(), "{}: {}", key.truecolor(255, 255, 255), valp.truecolor(244, 67, 54).to_string());
                                     }else {
-                                        println!("{}: {}", key.truecolor(255, 255, 255), valp);
+                                        _ = writeln!(io::stdout(), "{}: {}", key.truecolor(255, 255, 255), valp);
                                     }
                                 
                                 }else{
 
-                                    println!("{}: {}", key.truecolor(255, 255, 255), valp);
+                                    _ = writeln!(io::stdout(), "{}: {}", key.truecolor(255, 255, 255), valp);
 
                                 }
 
@@ -571,15 +571,15 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
                             // ### RTP IP ###
                             if value.starts_with("c=") {
                                 let ipidx = value.find("IP4 ").and_then(|x| Some(x+4)).unwrap_or(value.find("=").and_then(|x| Some(x+1)).unwrap_or(0));
-                                println!("{}{}", value[..ipidx].to_string(), value[ipidx..].to_string().truecolor(0, 220, 245));
+                                _ = writeln!(io::stdout(), "{}{}", value[..ipidx].to_string(), value[ipidx..].to_string().truecolor(0, 220, 245));
                                 
                             // ### RTP Codecs ###
                             }else if value.starts_with("a=rtpmap:") {
                                 let slidx = value.find("/").unwrap_or(value.len());
-                                println!("{}{}{}", value[..9].to_string(), value[9..slidx].to_string().truecolor(76, 175, 80), value[slidx..].to_string());
+                                _ = writeln!(io::stdout(), "{}{}{}", value[..9].to_string(), value[9..slidx].to_string().truecolor(76, 175, 80), value[slidx..].to_string());
                                 
                             }else{
-                                println!("{}", value);
+                                _ = writeln!(io::stdout(), "{}", value);
                             }
                         }
                         print!("\n");
@@ -589,9 +589,9 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
                     // Other Lines?
                     if packet_obj.other.len() > 0 {
                         for value in &packet_obj.other {
-                            println!("{}", value.dimmed())
+                            _ = writeln!(io::stdout(), "{}", value.dimmed())
                         }
-                        println!("[WARNING] This Packet contained the above Lines which do not follow the 'Header: Value' or 'a=sdpvalue' structure");
+                        _ = writeln!(io::stderr(), "[WARNING] This Packet contained the above Lines which do not follow the 'Header: Value' or 'a=sdpvalue' structure");
                         print!("\n");
                     }
 
@@ -632,14 +632,13 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
                     }else {
                         _pstatus = format!("{} {} | From: {} To: {}", color_request_method(&packet_obj.sip_method), c_cseq, c_from, c_to);
                     }
-                    println!("{}", _pstatus);
+                    _ = writeln!(io::stdout(), "{}\n", _pstatus);
 
-                    print!("\n");
                 }
 
 
             }else{
-                println!("  [Error] {}\n", packet_obj.error_text)
+                _ = writeln!(io::stderr(), "  [Error] {}\n", packet_obj.error_text)
             }
 
 
@@ -875,7 +874,7 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
                     }
                 },
                 Err(_e) => {
-                    println!("[Error] Unable to parse Regular Expression");
+                    _ = writeln!(io::stderr(), "[Error] Unable to parse Regular Expression");
                     std::process::exit(1);
                 }
             }
@@ -909,7 +908,7 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
                     let splitlen: usize = split.clone().count();
 
                     if splitlen < 1 || splitlen > 3 {
-                        println!("[Error] {}", errstr_format);
+                        _ = writeln!(io::stderr(), "[Error] {}", errstr_format);
                         std::process::exit(1);
                     }
 
@@ -921,7 +920,7 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
                     for (idx, sp) in split.enumerate() {
 
                         if sp.len() != 2 {
-                            println!("[Error] {}", errstr_format);
+                            _ = writeln!(io::stderr(), "[Error] {}", errstr_format);
                             std::process::exit(1);
                         }
 
@@ -943,7 +942,7 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
                         fromtime = NaiveTime::from_hms_opt(hour, minute, second);
                             
                         if fromtime.is_none() {
-                            println!("[Error] Unable to parse Time '{}'.{}{}", timevec.join("_"), errstr_nl, errstr_format);
+                            _ = writeln!(io::stderr(), "[Error] Unable to parse Time '{}'.{}{}", timevec.join("_"), errstr_nl, errstr_format);
                             std::process::exit(1);
                         }
 
@@ -951,7 +950,7 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
                         totime = NaiveTime::from_hms_opt(hour, minute, second);
                             
                         if totime.is_none() {
-                            println!("[Error] Unable to parse Time '{}'.{}{}", timevec.join("_"), errstr_nl, errstr_format);
+                            _ = writeln!(io::stderr(), "[Error] Unable to parse Time '{}'.{}{}", timevec.join("_"), errstr_nl, errstr_format);
                             std::process::exit(1);
                         }
                     }
@@ -959,7 +958,7 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
             }
 
         }else{
-            println!("[Error] To pass a Time Filter two values are needed, separated by an underscore (_). Like '-t 12:48_13:25' or '-t _15:37'. \n        Not providing a value on one side filters from/to the beginning/end of the file to/from the given time.{}{}", errstr_nl, errstr_format);
+            _ = writeln!(io::stderr(), "[Error] To pass a Time Filter two values are needed, separated by an underscore (_). Like '-t 12:48_13:25' or '-t _15:37'. \n        Not providing a value on one side filters from/to the beginning/end of the file to/from the given time.{}{}", errstr_nl, errstr_format);
             std::process::exit(1);
         }
 
@@ -989,7 +988,7 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
             }
 
         } else {
-            println!("[Error] To pass a Time Filter two values are needed, separated by an underscore (_). Like '-t 12:48_13:25' or '-t _15:37'. \n        Not providing a value on one side filters from/to the beginning/end of the file to/from the given time.{}{}", errstr_nl, errstr_format);
+            _ = writeln!(io::stderr(), "[Error] To pass a Time Filter two values are needed, separated by an underscore (_). Like '-t 12:48_13:25' or '-t _15:37'. \n        Not providing a value on one side filters from/to the beginning/end of the file to/from the given time.{}{}", errstr_nl, errstr_format);
             std::process::exit(1);
         }
 
@@ -1301,7 +1300,7 @@ fn main() {
         Some(ref path) => {
             // Check if file path and stdin are provided an warn the user
             if !atty::is(atty::Stream::Stdin){
-                println!("[WARNING] Avoid passing xsip a file path and pipeing something into it! Continuing with the Filepath...");
+                _ = writeln!(io::stderr(), "[WARNING] Avoid passing xsip a file path and pipeing something into it! Continuing with the Filepath...");
             }
 
             // Check if file path exists
@@ -1313,7 +1312,7 @@ fn main() {
 
                     if path.file_name().unwrap_or(OsStr::new("")).to_string_lossy().contains(".gz") {
 
-                        println!("[Info] Found compressed file, using GzDecoder...\n");
+                        _ = writeln!(io::stdout(), "[Info] Found compressed file, using GzDecoder...\n");
 
                         // Compressed File
                         if let Ok(file) = fs::File::open(path) {
@@ -1352,7 +1351,7 @@ fn main() {
                             }
 
                         }else {
-                            println!("[Error] Unable to open file '{}'", path.display());
+                            _ = writeln!(io::stderr(), "[Error] Unable to open file '{}'", path.display());
                         }
                         
                     }else{
@@ -1394,7 +1393,7 @@ fn main() {
                             }
 
                         }else {
-                            println!("[Error] Unable to open file '{}'", path.display());
+                            _ = writeln!(io::stderr(), "[Error] Unable to open file '{}'", path.display());
                         }
 
                     }
@@ -1484,7 +1483,7 @@ fn main() {
 
                             }
                             Err(_error) => {
-                                println!("{_error:?}");
+                                _ = writeln!(io::stderr(), "{_error:?}");
                                 thread::sleep(time::Duration::from_millis(1000));
                             }
                         }
@@ -1531,7 +1530,7 @@ fn main() {
                             failcnt += 1;
 
                             if failcnt >= 15 {
-                                println!("[INFO] File was moved/deleted and not recreated");
+                                _ = writeln!(io::stdout(), "[INFO] File was moved/deleted and not recreated");
                                 break; 
                             }
                         }
@@ -1540,7 +1539,7 @@ fn main() {
                 }
 
             }else{
-                println!("[Error] This file doesn't exist: \'{}\'", path.display())
+                _ = writeln!(io::stderr(), "[Error] This file doesn't exist: \'{}\'", path.display())
             }
         }
     }
