@@ -1,6 +1,9 @@
 use chrono::{Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
 use clap::builder::styling::{self, AnsiColor};
 use clap::Parser;
+use clap::CommandFactory;
+use clap::FromArgMatches;
+use std::collections::HashSet;
 use flate2::read::GzDecoder;
 use indexmap::IndexMap;
 use ipnet::Ipv4Net;
@@ -34,7 +37,8 @@ const STYLES: styling::Styles = styling::Styles::styled()
 /// A command-line tool to extract, filter and Pretty-print SIP messages from Cirpack pcscf.1 and ibcf.1 log files.
 /// 
 /// DESCRIPTION
-///   Most flags can take more than one value, these can be separated either by a colon `,` or a whitespace ` `
+///   Most flags can take more than one value, these can be separated either by a colon `,` or a whitespace ` `.
+///   Every flag can only be used once (Even when using --NOT).
 /// 
 ///   By default, every given flag combined with AND logic (if --OR is not provided). Multiple arguments of the same flag are evaluated with OR logic.
 ///   Example:
@@ -68,11 +72,15 @@ struct Args {
 
 
     /// Join Filters with OR; Default: AND
-    #[arg(long = "OR")]
+    #[arg(long = "OR", verbatim_doc_comment)]
     or_filter: bool,
 
-    /// Exclude Packets matching the Filter
-    #[arg(long = "NOT")]
+    /// Exclude Packets matching the Filters after the --NOT Parameter
+    /// 
+    ///   Inverts the logic of filters coming after it. 
+    ///   When Using the same Flag multiple times only the first use will be considered. 
+    ///   Example: -i 10.137.228.135 --NOT -m OPTIONS,OK    maches if either Source or Destination IP are "10.137.228.135" but ignores OPTIONS and OK Packtes
+    #[arg(long = "NOT", verbatim_doc_comment)]
     not_filter: bool,
 
 
@@ -655,7 +663,7 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
 
 
 
-fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<String>) {
+fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<String>, negated_filters: &HashSet<&str>) {
 
     packet_obj.filter_out = true;
 
@@ -1030,24 +1038,26 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
             filter_results.insert("sdp".to_string(), false);
         }
     }
-    
 
+
+
+
+    for (filter_name, filter_result) in filter_results.iter_mut() {
+        if negated_filters.contains(filter_name.as_str()) {
+            *filter_result = !*filter_result;
+        }
+    }
 
 
     // ### Evalutes Package treatment based on Filter joining Method ###
     if !args.or_filter {
         // AND
-        if !args.not_filter && filter_results.values().into_iter().all(|x| *x) { 
+        if filter_results.values().into_iter().all(|x| *x) { 
             packet_obj.filter_out = false; 
-            
-        }else if args.not_filter && filter_results.values().into_iter().all(|x| !*x) {
-            packet_obj.filter_out = false;
         }
     }else{
         // OR
-        if !args.not_filter && filter_results.values().into_iter().any(|x| *x) {
-            packet_obj.filter_out = false;
-        } else if args.not_filter && filter_results.values().into_iter().any(|x| !*x) {
+        if filter_results.values().into_iter().any(|x| *x) {
             packet_obj.filter_out = false;
         }
     }
@@ -1236,7 +1246,7 @@ fn parse_packet(packet_buffer: &mut Vec<String>, packet_obj: &mut Packet, date: 
 
 
 
-fn handle_log_line(args: &Args, packet_buffer: &mut Vec<String>, mut packet_obj: &mut Packet, line: &String, date: NaiveDate){
+fn handle_log_line(args: &Args, packet_buffer: &mut Vec<String>, mut packet_obj: &mut Packet, line: &String, date: NaiveDate, negated_filters: &HashSet<&str>){
     
     if line.trim().starts_with("(") {
 
@@ -1258,7 +1268,7 @@ fn handle_log_line(args: &Args, packet_buffer: &mut Vec<String>, mut packet_obj:
                 
                 // Do the actual work
                 parse_packet(packet_buffer, &mut packet_obj, date);
-                filter_packet(args, &mut packet_obj, packet_buffer);
+                filter_packet(args, &mut packet_obj, packet_buffer, negated_filters);
                 color_print_packet(args, &mut packet_obj, packet_buffer);
             }
 
@@ -1277,7 +1287,33 @@ fn handle_log_line(args: &Args, packet_buffer: &mut Vec<String>, mut packet_obj:
 
 
 fn main() {
-    let args = Args::parse();
+
+
+    let matches = Args::command().get_matches();
+    let mut negated_filters: HashSet<&str> = HashSet::new();
+
+    if let Some(not_indices) = matches.indices_of("not_filter") {
+        if let Some(not_index) = not_indices.into_iter().next() {
+
+            let filter_ids = [
+                "number", "from", "to", "ip", "srcip", "dstip", "port", "srcport", "dstport",
+                "call_id", "method", "status_code", "cseq_method", "string", "regex", "time",
+                "request", "response", "internal", "hassdp"
+            ];
+
+            for id in filter_ids {
+                if let Some(indices) = matches.indices_of(id) {
+                    if let Some(first_index) = indices.into_iter().next() {
+                        if first_index > not_index {
+                            negated_filters.insert(id);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let args = Args::from_arg_matches(&matches).expect("Failed to parse args");
 
     let mut packet_buffer: Vec<String> = Vec::new();
     let mut packet_obj: Packet = Packet::new(); 
@@ -1305,7 +1341,7 @@ fn main() {
                             .or(line.strip_suffix("\n"))
                             .unwrap_or(&line).to_string();
 
-                handle_log_line(&args, &mut packet_buffer, &mut packet_obj, &line, date);
+                handle_log_line(&args, &mut packet_buffer, &mut packet_obj, &line, date, &negated_filters);
 
                 line.clear();
             }
@@ -1360,7 +1396,7 @@ fn main() {
                                             .or(line.strip_suffix("\n"))
                                             .unwrap_or(&line).to_string();
 
-                                handle_log_line(&args, &mut packet_buffer, &mut packet_obj, &line, file_date);
+                                handle_log_line(&args, &mut packet_buffer, &mut packet_obj, &line, file_date, &negated_filters);
 
                                 line.clear();
                             }
@@ -1402,7 +1438,7 @@ fn main() {
                                             .or(line.strip_suffix("\n"))
                                             .unwrap_or(&line).to_string();
 
-                                handle_log_line(&args, &mut packet_buffer, &mut packet_obj, &line, file_date);
+                                handle_log_line(&args, &mut packet_buffer, &mut packet_obj, &line, file_date, &negated_filters);
 
                                 line.clear();
                             }
@@ -1484,7 +1520,7 @@ fn main() {
                                                                 .or(line.strip_suffix("\n"))
                                                                 .unwrap_or(&line).to_string();
 
-                                                    handle_log_line(&args, &mut packet_buffer, &mut packet_obj, &line, Local::now().date_naive());
+                                                    handle_log_line(&args, &mut packet_buffer, &mut packet_obj, &line, Local::now().date_naive(), &negated_filters);
 
                                                     line.clear();
                                                 }
