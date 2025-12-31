@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use flate2::read::GzDecoder;
 use indexmap::IndexMap;
 use ipnet::Ipv4Net;
-use notify::event::{DataChange, ModifyKind};
+use notify::event::{AccessKind, AccessMode};
 use regex::Regex;
 extern crate atty;
 use core::time;
@@ -1474,56 +1474,60 @@ fn main() {
                                 
                                 match _event.kind {
                                     
-                                    // If Event says that file was modified and exists read new characters
-                                    EventKind::Modify(ModifyKind::Data(DataChange::Any)) => {
+                                    // If Event says that file was closed after writing, and it exists, read new characters
+                                    // Using Close(Write) Event, because Data(Change) leads to race conditions with the file save mechanism
+                                    EventKind::Access(AccessKind::Close(AccessMode::Write)) => {
 
                                         if Path::new(&eventlistenerpath).exists() {
 
                                             let mut f = std::fs::File::open(&eventlistenerpath).expect("[Error] Couldn't read file");
                                             
                                             let lastpos = pos.load(Ordering::SeqCst);
-                                            let mut curpos = f.metadata().expect("TODO-TEMP").len();
+                                            let mut curpos = f.metadata().expect("Generic Error").len();
                                             
                                             
                                             // ignore any event that didn't change the pos (file actually not modified)
                                             if !(curpos == lastpos) {
-                                                // println!("::w:: Size drinnen: {:?} -> {:?}", lastpos, f.metadata().unwrap().len()); // DEBUG
-        
-                                                if curpos < lastpos {
-                                                    curpos = 0; 
-                                                }
-        
-                                                // Set cursor to lastpos
-                                                f.seek(std::io::SeekFrom::Start(lastpos)).expect("TODO-TEMP");
                                                 
-                                                // Read from lastpos to current end of file
-                                                let mut reader: Box<dyn BufRead> = Box::new(BufReader::new(&f));
-                                                let mut line = String::new();
+                                                // Only proceed if file hasn't been truncated, otherwise start at the beginning
+                                                if curpos < lastpos {
+                                                    // println!("::w:: Size reset!"); // DEBUG
+                                                    curpos = 0; 
+
+                                                }else{
+        
+                                                    // Set cursor to lastpos
+                                                    f.seek(std::io::SeekFrom::Start(lastpos)).expect("Generic Error");
+
+                                                    // Read from lastpos to current end of file
+                                                    let mut reader: Box<dyn BufRead> = Box::new(BufReader::new(&f));
+                                                    let mut line = String::new();
+
+                                                    // Pass every line to our filtering function
+                                                    while reader.read_line(&mut line)
+                                                        .or_else(|e| {
+                                                            if e.kind() == ErrorKind::InvalidData {
+                                                                line = "".to_string();
+                                                                return Ok(1)
+                                                            }else {
+                                                                return Err(e);
+                                                            }
+                                                        })
+                                                        .is_ok_and(|x| x != 0) 
+                                                    {   
+
+                                                        line = line.strip_suffix("\r\n")
+                                                                    .or(line.strip_suffix("\n"))
+                                                                    .unwrap_or(&line).to_string();
+
+                                                        handle_log_line(&args, &mut packet_buffer, &mut packet_obj, &line, Local::now().date_naive(), &negated_filters);
+
+                                                        line.clear();
+                                                    }
+                                                }
 
                                                 // Update lastpos
                                                 pos.store(curpos, Ordering::SeqCst);
-                                                
-                                                // Pass every line to our filtering function
-                                                while reader.read_line(&mut line)
-                                                    .or_else(|e| {
-                                                        if e.kind() == ErrorKind::InvalidData {
-                                                            line = "".to_string();
-                                                            return Ok(1)
-                                                        }else {
-                                                            return Err(e);
-                                                        }
-                                                    })
-                                                    .is_ok_and(|x| x != 0) 
-                                                {   
-
-                                                    line = line.strip_suffix("\r\n")
-                                                                .or(line.strip_suffix("\n"))
-                                                                .unwrap_or(&line).to_string();
-
-                                                    handle_log_line(&args, &mut packet_buffer, &mut packet_obj, &line, Local::now().date_naive(), &negated_filters);
-
-                                                    line.clear();
-                                                }
                                             }
                                         }
 
@@ -1538,13 +1542,13 @@ fn main() {
                                 thread::sleep(time::Duration::from_millis(1000));
                             }
                         }
-                    }).expect("TODO-TEMP");
+                    }).expect("Generic Error");
 
 
 
                     
                     // Start watching the given path. Calls previously defined Code on Event Trigger
-                    watcher.watch(Path::new(&watcherpath), RecursiveMode::Recursive).expect("TODO-TEMP");
+                    watcher.watch(Path::new(&watcherpath), RecursiveMode::Recursive).expect("Generic Error");
 
 
                     let mut size;
@@ -1565,7 +1569,7 @@ fn main() {
                             if size < lastsize {
                                 let _ = watcher.unwatch(Path::new(&watcherpath));
 
-                                watcher.watch(Path::new(&watcherpath), RecursiveMode::Recursive).expect("TODO-TEMP");   
+                                watcher.watch(Path::new(&watcherpath), RecursiveMode::Recursive).expect("Generic Error");   
                                 // println!(":: Set up new watcher ") // DEBUG 
                             }
 
