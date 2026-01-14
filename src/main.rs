@@ -1040,8 +1040,6 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
     }
 
 
-
-
     for (filter_name, filter_result) in filter_results.iter_mut() {
         if negated_filters.contains(filter_name.as_str()) {
             *filter_result = !*filter_result;
@@ -1063,7 +1061,7 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
     }
 
     // // DEBUG
-    // print!("\n");
+    // print!("┌= FILTER =-\n");s
     // for x in &filter_results {
     //     println!("| -> {:?}", x);
     // }
@@ -1114,11 +1112,21 @@ fn parse_packet(packet_buffer: &mut Vec<String>, packet_obj: &mut Packet, date: 
                         
                         
                         // HOST IP:PORT
-                        let host_one: &str = &info.get(3).unwrap_or(&"<0.0.0.0:0>");
-                        let host_one_split: &Vec<&str> = &host_one[1..&host_one.len()-1].split(":").collect();
+                        let host_one_str: &&str = &info.get(3).unwrap_or(&"<0.0.0.0:0>");
+                        let host_one_unwrapped = if host_one_str.len() >= 2 {
+                            &host_one_str[1..host_one_str.len()-1]
+                        } else {
+                            "0.0.0.0:0"
+                        };
+                        let host_one_split: Vec<&str> = host_one_unwrapped.split(':').collect();
                         
-                        let host_two: &str = &info.get(8).unwrap_or(&"<0.0.0.0:0>");
-                        let host_two_split: &Vec<&str> = &host_two[1..&host_two.len()-1].split(":").collect();
+                        let host_two_str: &&str = &info.get(8).unwrap_or(&"<0.0.0.0:0>");
+                        let host_two_unwrapped = if host_two_str.len() >= 2 {
+                            &host_two_str[1..host_two_str.len()-1]
+                        } else {
+                            "0.0.0.0:0"
+                        };
+                        let host_two_split: Vec<&str> = host_two_unwrapped.split(':').collect();
             
                         // Left Host
                         let host_one_ip: Ipv4Addr = match host_one_split.get(0).unwrap_or(&"0.0.0.0").parse() {
@@ -1289,22 +1297,57 @@ fn handle_log_line(args: &Args, packet_buffer: &mut Vec<String>, mut packet_obj:
 fn main() {
 
 
+    // let matches = Args::command().get_matches();
+    // let mut negated_filters: HashSet<&str> = HashSet::new();
+
+    // println!("matches: {:?}", matches);
+
+    // if let Some(not_indices) = matches.indices_of("not_filter") {
+    //     if let Some(not_index) = not_indices.into_iter().next() {
+
+
+    //         let filter_ids = [
+    //             "number", "from", "to", "ip", "srcip", "dstip", "port", "srcport", "dstport",
+    //             "call_id", "method", "status_code", "cseq_method", "string", "regex", "time",
+    //             "request", "response", "internal", "hassdp"
+    //         ];
+
+    //         for id in filter_ids {
+    //             if let Some(indices) = matches.indices_of(id) {
+    //                 if let Some(first_index) = indices.into_iter().next() {
+    //                     if first_index > not_index {
+    //                         negated_filters.insert(id);
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+
+
     let matches = Args::command().get_matches();
     let mut negated_filters: HashSet<&str> = HashSet::new();
 
-    if let Some(not_indices) = matches.indices_of("not_filter") {
-        if let Some(not_index) = not_indices.into_iter().next() {
+    // First check if not_filter is true
+    if matches.get_flag("not_filter") {
+        // Get the raw command-line arguments from the "Args" entry
+        if let Some(args_entry) = matches.try_get_raw("Args").ok().flatten() {
+            let raw_args: Vec<&str> = args_entry.map(|s| s.to_str().unwrap()).collect();
 
-            let filter_ids = [
-                "number", "from", "to", "ip", "srcip", "dstip", "port", "srcport", "dstport",
-                "call_id", "method", "status_code", "cseq_method", "string", "regex", "time",
-                "request", "response", "internal", "hassdp"
-            ];
+            println!("\n\nraw_args: {:?}", raw_args);
+            
+            // Find the position of "not_filter" in the raw arguments
+            if let Some(not_pos) = raw_args.iter().position(|&arg| arg == "not_filter") {
+                let filter_ids = [
+                    "number", "from", "to", "ip", "srcip", "dstip", "port", "srcport", "dstport",
+                    "call_id", "method", "status_code", "cseq_method", "string", "regex", "time",
+                    "request", "response", "internal", "hassdp", "nosdp"
+                ];
 
-            for id in filter_ids {
-                if let Some(indices) = matches.indices_of(id) {
-                    if let Some(first_index) = indices.into_iter().next() {
-                        if first_index > not_index {
+                // Check which filter IDs appear in raw_args after not_filter
+                for &id in &filter_ids {
+                    if let Some(id_pos) = raw_args.iter().position(|&arg| arg == id) {
+                        if id_pos > not_pos {
                             negated_filters.insert(id);
                         }
                     }
@@ -1470,7 +1513,7 @@ fn main() {
                         match res {
                             Ok(_event) => {
 
-                                // println!("::w:: Event: {:?}", _event); // DEBUG
+                                println!("::w:: Event: {:?}", _event); // DEBUG
                                 
                                 match _event.kind {
                                     
@@ -1525,9 +1568,11 @@ fn main() {
                                                         line.clear();
                                                     }
                                                 }
-
+                                                
                                                 // Update lastpos
                                                 pos.store(curpos, Ordering::SeqCst);
+                                                // println!("::w:: Store next pos: {:?} -> {:?}", lastpos, curpos); // DEBUG
+
                                             }
                                         }
 
