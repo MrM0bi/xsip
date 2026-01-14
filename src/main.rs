@@ -1296,35 +1296,6 @@ fn handle_log_line(args: &Args, packet_buffer: &mut Vec<String>, mut packet_obj:
 
 fn main() {
 
-
-    // let matches = Args::command().get_matches();
-    // let mut negated_filters: HashSet<&str> = HashSet::new();
-
-    // println!("matches: {:?}", matches);
-
-    // if let Some(not_indices) = matches.indices_of("not_filter") {
-    //     if let Some(not_index) = not_indices.into_iter().next() {
-
-
-    //         let filter_ids = [
-    //             "number", "from", "to", "ip", "srcip", "dstip", "port", "srcport", "dstport",
-    //             "call_id", "method", "status_code", "cseq_method", "string", "regex", "time",
-    //             "request", "response", "internal", "hassdp"
-    //         ];
-
-    //         for id in filter_ids {
-    //             if let Some(indices) = matches.indices_of(id) {
-    //                 if let Some(first_index) = indices.into_iter().next() {
-    //                     if first_index > not_index {
-    //                         negated_filters.insert(id);
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-
-
     let matches = Args::command().get_matches();
     let mut negated_filters: HashSet<&str> = HashSet::new();
 
@@ -1513,7 +1484,7 @@ fn main() {
                         match res {
                             Ok(_event) => {
 
-                                println!("::w:: Event: {:?}", _event); // DEBUG
+                                // println!("::w:: Event: {:?}", _event); // DEBUG
                                 
                                 match _event.kind {
                                     
