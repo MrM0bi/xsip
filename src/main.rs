@@ -1305,7 +1305,7 @@ fn main() {
         if let Some(args_entry) = matches.try_get_raw("Args").ok().flatten() {
             let raw_args: Vec<&str> = args_entry.map(|s| s.to_str().unwrap()).collect();
 
-            println!("\n\nraw_args: {:?}", raw_args);
+            // println!("\n\nraw_args: {:?}", raw_args);
             
             // Find the position of "not_filter" in the raw arguments
             if let Some(not_pos) = raw_args.iter().position(|&arg| arg == "not_filter") {
