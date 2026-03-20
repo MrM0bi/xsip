@@ -392,7 +392,7 @@ fn numbermachtes(packet_number: &String, compare_number: &str) -> bool {
     // Removes C60 in packet-Number if you don't search for one
     if let Some(c60idx) = number_uri.to_lowercase().find("c60") {
         if !compare_number.to_lowercase().contains("c60") {   
-            if number_uri.chars().count() >= c60idx+9 {
+            if number_uri.len() >= c60idx+9 {
                 number_uri = format!("{}{}", &number_uri[..c60idx], &number_uri[c60idx+9..]);
             }
         }
@@ -417,10 +417,13 @@ fn to_headercase(header: String) -> String {
         }else if p.to_lowercase() == "cseq" {
             reformatted.push("CSeq".to_string());
         }else{
-            if p.len() >= 2 {
-                reformatted.push(p[..1].to_uppercase().to_string() + &p[1..].to_lowercase().to_string());
-            }else {
-                reformatted.push(p.to_uppercase().to_string());
+            let mut chars = p.chars();
+            match chars.next() {
+                Some(first) => {
+                    let rest: String = chars.collect::<String>().to_lowercase();
+                    reformatted.push(first.to_uppercase().to_string() + &rest);
+                }
+                None => reformatted.push(String::new()),
             }
         }
     }
@@ -464,7 +467,7 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
             }else{
                 for pbl in packet_buffer {
                     if args.nosdp {
-                        if &pbl[1..2] != "=" {
+                        if pbl.chars().nth(1) != Some('=') {
                             _ = writeln!(io::stdout(), "{}", pbl)
                         }
                     }else{
@@ -1089,8 +1092,10 @@ fn parse_packet(packet_buffer: &mut Vec<String>, packet_obj: &mut Packet, date: 
                     // Check if it has enough Elements
                     if info.len() >= 9 {
 
+                        let time_str: String = info.get(0).unwrap_or(&"(00:00:00.00)").chars().skip(1).take(11).collect();
+
                         // DATE-TIME : Parse current Time and update the Time in the initialized Object if Ok
-                        let parsedtime = match NaiveTime::parse_from_str(&info.get(0).unwrap_or(&"(00:00:00.00)")[1..12], "%H:%M:%S%.f") {
+                        let parsedtime = match NaiveTime::parse_from_str(&time_str, "%H:%M:%S%.f") {
                             Ok(time) => NaiveDateTime::new(date, time),
                             Err(_e) => {
                                 packet_obj.error = true;
@@ -1114,20 +1119,18 @@ fn parse_packet(packet_buffer: &mut Vec<String>, packet_obj: &mut Packet, date: 
                         
                         
                         // HOST IP:PORT
-                        let host_one_str: &&str = &info.get(3).unwrap_or(&"<0.0.0.0:0>");
-                        let host_one_unwrapped = if host_one_str.len() >= 2 {
-                            &host_one_str[1..host_one_str.len()-1]
-                        } else {
-                            "0.0.0.0:0"
-                        };
+                        let host_one_str = info.get(3).unwrap_or(&"<0.0.0.0:0>");
+                        let host_one_unwrapped = host_one_str
+                            .strip_prefix('<')
+                            .and_then(|s| s.strip_suffix('>'))
+                            .unwrap_or("0.0.0.0:0");
                         let host_one_split: Vec<&str> = host_one_unwrapped.split(':').collect();
                         
-                        let host_two_str: &&str = &info.get(8).unwrap_or(&"<0.0.0.0:0>");
-                        let host_two_unwrapped = if host_two_str.len() >= 2 {
-                            &host_two_str[1..host_two_str.len()-1]
-                        } else {
-                            "0.0.0.0:0"
-                        };
+                        let host_two_str = info.get(8).unwrap_or(&"<0.0.0.0:0>");
+                        let host_two_unwrapped = host_two_str
+                            .strip_prefix('<')
+                            .and_then(|s| s.strip_suffix('>'))
+                            .unwrap_or("0.0.0.0:0");
                         let host_two_split: Vec<&str> = host_two_unwrapped.split(':').collect();
             
                         // Left Host
@@ -1214,7 +1217,7 @@ fn parse_packet(packet_buffer: &mut Vec<String>, packet_obj: &mut Packet, date: 
             _ => {
 
                 // SDP
-                if &line[1..2] == "=" {
+                if line.chars().nth(1) == Some('=') {
                     
                     packet_obj.sdp.push(line.to_string());
                     
@@ -1223,10 +1226,10 @@ fn parse_packet(packet_buffer: &mut Vec<String>, packet_obj: &mut Packet, date: 
                     match line.find(":") {
                         Some(splitindex) => {
                             
-                            let slices = line.split_at(splitindex);
-                            
-                            let key = to_headercase(slices.0[..slices.0.len()].trim().to_string().to_lowercase());
-                            let mut value = slices.1[1..].trim().to_string();
+                            let (raw_key, raw_value) = line.split_at(splitindex);
+
+                            let key = to_headercase(raw_key.trim().to_lowercase());
+                            let mut value = raw_value.chars().skip(1).collect::<String>().trim().to_string();
 
                             // WORKAROUND
                             // Turns out duplicate Headers can exist... Check for that. Since i don't want to rework
