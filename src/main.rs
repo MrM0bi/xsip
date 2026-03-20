@@ -387,16 +387,18 @@ fn parse_to_net(ipv4: &String) -> Ipv4Net {
 
 fn numbermachtes(packet_number: &String, compare_number: &str) -> bool {
 
-    let mut packet: String = packet_number.to_string(); // Number as its found in the packet
+    let mut number_uri: String = packet_number.to_string(); // Number as its found in the packet
 
     // Removes C60 in packet-Number if you don't search for one
-    if let Some(c60idx) = packet.to_lowercase().find("c60") {
+    if let Some(c60idx) = number_uri.to_lowercase().find("c60") {
         if !compare_number.to_lowercase().contains("c60") {   
-            packet = format!("{}{}", &packet[..c60idx], &packet[c60idx+9..]);
+            if number_uri.chars().count() >= c60idx+9 {
+                number_uri = format!("{}{}", &number_uri[..c60idx], &number_uri[c60idx+9..]);
+            }
         }
     }
 
-    return packet.to_lowercase().contains(&compare_number.to_lowercase());
+    return number_uri.to_lowercase().contains(&compare_number.to_lowercase());
 
 }
 
@@ -680,7 +682,7 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
                 
                 // Try to narrow down the string to the actual number, not the whole URI
                 let startidx = from.find(":").and_then(|x| Some(x+1)).unwrap_or(0);
-                let endidx = from.find("@").unwrap_or( from.find(">").unwrap_or(from.len()));
+                let endidx = from.find("@").unwrap_or( from.find(">").unwrap_or(from.find(";").unwrap_or(from.len())));
 
                 from[startidx..endidx].to_string().to_lowercase()
             },
@@ -692,7 +694,7 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
                 
                 // Try to narrow down the string to the actual number, not the whole URI
                 let startidx = to.find(":").and_then(|x| Some(x+1)).unwrap_or(0); // Adds 1 if is_some
-                let endidx = to.find("@").unwrap_or( to.find(">").unwrap_or(to.len()));
+                let endidx = to.find("@").unwrap_or( to.find(">").unwrap_or(to.find(";").unwrap_or(to.len())));
 
                 to[startidx..endidx].to_string().to_lowercase()
             },
