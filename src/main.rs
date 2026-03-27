@@ -1269,7 +1269,7 @@ fn handle_log_line(args: &Args, packet_buffer: &mut Vec<String>, mut packet_obj:
         }
 
         // if the current line starts with "(" and there are lines waiting in the buffer, filter, color and print them
-        if packet_buffer.len() > 1 {
+        if packet_buffer.len() > 2 {
 
             let empty = "".to_string();
             let part = packet_buffer.first().unwrap_or(&empty).split(" ").nth(2).unwrap_or("");
