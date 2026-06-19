@@ -1519,32 +1519,52 @@ fn main() {
                                                     f.seek(std::io::SeekFrom::Start(lastpos)).expect("Generic Error");
 
                                                     // Read from lastpos to current end of file
-                                                    let mut reader: Box<dyn BufRead> = Box::new(BufReader::new(&f));
+                                                    let mut reader = BufReader::new(&f);
                                                     let mut line = String::new();
 
-                                                    // Pass every line to our filtering function
-                                                    while reader.read_line(&mut line)
-                                                        .or_else(|e| {
-                                                            if e.kind() == ErrorKind::InvalidData {
-                                                                line = "".to_string();
-                                                                return Ok(1)
-                                                            }else {
-                                                                return Err(e);
-                                                            }
-                                                        })
-                                                        .is_ok_and(|x| x != 0) 
-                                                    {   
+                                                    // Bytes of a trailing, not-yet-complete line that we refuse to
+                                                    // consume this round (see partial-line handling below).
+                                                    let mut partial: u64 = 0;
 
-                                                        line = line.strip_suffix("\r\n")
+                                                    // Pass every complete line to our filtering function
+                                                    loop {
+                                                        line.clear();
+
+                                                        let n = match reader.read_line(&mut line) {
+                                                            Ok(n) => n,
+                                                            // Non-UTF8 line: reader already consumed it, skip and continue
+                                                            Err(e) if e.kind() == ErrorKind::InvalidData => continue,
+                                                            // Any other IO error: stop reading this round
+                                                            Err(_) => break,
+                                                        };
+
+                                                        // EOF, all complete lines consumed
+                                                        if n == 0 { break; }
+
+                                                        // A line without a terminating newline means the writer hasn't
+                                                        // finished writing it yet. Don't process a partial line; record
+                                                        // its length so we roll the position back and re-read it from
+                                                        // the start once it's complete.
+                                                        if !line.ends_with('\n') {
+                                                            partial = n as u64;
+                                                            break;
+                                                        }
+
+                                                        let trimmed = line.strip_suffix("\r\n")
                                                                     .or(line.strip_suffix("\n"))
                                                                     .unwrap_or(&line).to_string();
 
-                                                        handle_log_line(&args, &mut packet_buffer, &mut packet_obj, &line, Local::now().date_naive(), &negated_filters);
-
-                                                        line.clear();
+                                                        handle_log_line(&args, &mut packet_buffer, &mut packet_obj, &trimmed, Local::now().date_naive(), &negated_filters);
                                                     }
+
+                                                    // Use the position actually consumed by the reader, not the
+                                                    // stale metadata snapshot. The file may have grown while we were
+                                                    // reading, so the reader can advance past `curpos`. Storing the
+                                                    // snapshot would make the next event re-read the gap -> doubled lines.
+                                                    // Subtract any partial trailing line so it gets re-read next round.
+                                                    curpos = reader.stream_position().expect("Generic Error") - partial;
                                                 }
-                                                
+
                                                 // Update lastpos
                                                 pos.store(curpos, Ordering::SeqCst);
                                                 // println!("::w:: Store next pos: {:?} -> {:?}", lastpos, curpos); // DEBUG
