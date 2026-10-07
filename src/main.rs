@@ -385,6 +385,42 @@ fn parse_to_net(ipv4: &String) -> Ipv4Net {
 
 
 
+// Return a range in the original header so filtering and highlighting agree.
+fn subscriber_range(header: &str) -> Option<std::ops::Range<usize>> {
+    let mut uri_start = 0;
+    let mut quoted = false;
+    let mut escaped = false;
+    for (idx, ch) in header.char_indices() {
+        if escaped {
+            escaped = false;
+            continue;
+        }
+        match ch {
+            '\\' if quoted => escaped = true,
+            '"' => quoted = !quoted,
+            '<' if !quoted => {
+                uri_start = idx + 1;
+                break;
+            }
+            _ => {}
+        }
+    }
+    if quoted || (uri_start == 0 && header.trim_start().starts_with('"')) {
+        return None;
+    }
+
+    let uri = header.get(uri_start..)?.split('>').next()?;
+    let start = uri_start + uri.find(':').map_or(0, |idx| idx + 1);
+    let subscriber = header.get(start..uri_start + uri.len())?;
+    // Keep the first-@ convention even for malformed URIs with multiple @ signs.
+    let end = start + subscriber.find('@')
+        .or_else(|| subscriber.find(';'))
+        .unwrap_or(subscriber.len());
+    header.get(start..end)?;
+    Some(start..end)
+}
+
+
 fn numbermachtes(packet_number: &String, compare_number: &str) -> bool {
 
     let mut number_uri: String = packet_number.to_string(); // Number as its found in the packet
@@ -526,12 +562,12 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
                                 
                                 // ### FROM / TO ###
                                 }else if key == "From" || key == "To" || key == "P-Asserted-Identity" {
-                                    // Try to narrow down the string to the actual number, not the whole URI
-                                    let startidx = valp.find("sip:").and_then(|x| Some(x+4)).unwrap_or(0);
-                                    let mut endidx = valp.find("@").unwrap_or( valp.find(">").unwrap_or(valp.len()));
-                                    if endidx > valp.find(";").unwrap_or(valp.len()) {
-                                        endidx = valp.find(";").unwrap_or(valp.len())
-                                    }
+                                    let Some(range) = subscriber_range(valp) else {
+                                        _ = writeln!(io::stdout(), "{}: {}", key.truecolor(255, 255, 255), valp);
+                                        continue;
+                                    };
+                                    let startidx = range.start;
+                                    let endidx = range.end;
                                     // Check if number contains C60 and is inside number
                                     if let Some(c60idx) = valp.to_lowercase().find("c60").filter(|x| x > &startidx && x < &endidx) {
                                         // The lighter yellow color used for the C60 is not following the Table, i used: #FFC670 / 255, 198, 112
@@ -623,21 +659,11 @@ fn color_print_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<
 
                     // From
                     let mut c_from: String = packet_obj.sip.get("From").unwrap_or(&_pstatus).to_string();
-                    let startidx = c_from.find("sip:").and_then(|x| Some(x+4)).unwrap_or(0);
-                    let mut endidx = c_from.find("@").unwrap_or( c_from.find(">").unwrap_or(c_from.len()));
-                    if endidx > c_from.find(";").unwrap_or(c_from.len()) {
-                        endidx = c_from.find(";").unwrap_or(c_from.len())
-                    }
-                    c_from = c_from[startidx..endidx].to_string();
+                    c_from = subscriber_range(&c_from).and_then(|range| c_from.get(range)).unwrap_or("").to_string();
 
                     // To
                     let mut c_to: String = packet_obj.sip.get("To").unwrap_or(&_pstatus).to_string();
-                    let startidx = c_to.find("sip:").and_then(|x| Some(x+4)).unwrap_or(0);
-                    let mut endidx = c_to.find("@").unwrap_or( c_to.find(">").unwrap_or(c_to.len()));
-                    if endidx > c_to.find(";").unwrap_or(c_to.len()) {
-                        endidx = c_to.find(";").unwrap_or(c_to.len())
-                    }
-                    c_to = c_to[startidx..endidx].to_string();
+                    c_to = subscriber_range(&c_to).and_then(|range| c_to.get(range)).unwrap_or("").to_string();
 
                     // CSeq
                     let mut c_cseq: String = packet_obj.sip.get("CSeq").unwrap_or(&_pstatus).to_string();
@@ -683,11 +709,7 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
         let from = match packet_obj.sip.get("From") {
             Some(from) => {
                 
-                // Try to narrow down the string to the actual number, not the whole URI
-                let startidx = from.find(":").and_then(|x| Some(x+1)).unwrap_or(0);
-                let endidx = from.find("@").unwrap_or( from.find(">").unwrap_or(from.find(";").unwrap_or(from.len())));
-
-                from[startidx..endidx].to_string().to_lowercase()
+                subscriber_range(from).and_then(|range| from.get(range)).unwrap_or("").to_lowercase()
             },
             None => "".to_string()
         };
@@ -695,11 +717,7 @@ fn filter_packet(args: &Args, packet_obj: &mut Packet, packet_buffer: &Vec<Strin
         let to = match packet_obj.sip.get("To") {
             Some(to) => {
                 
-                // Try to narrow down the string to the actual number, not the whole URI
-                let startidx = to.find(":").and_then(|x| Some(x+1)).unwrap_or(0); // Adds 1 if is_some
-                let endidx = to.find("@").unwrap_or( to.find(">").unwrap_or(to.find(";").unwrap_or(to.len())));
-
-                to[startidx..endidx].to_string().to_lowercase()
+                subscriber_range(to).and_then(|range| to.get(range)).unwrap_or("").to_lowercase()
             },
             None => "".to_string()
         };
